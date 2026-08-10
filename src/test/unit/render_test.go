@@ -1,0 +1,163 @@
+package unit_test
+
+import (
+	"image"
+	"testing"
+
+	"gioui.org/layout"
+	"gioui.org/op"
+	"gioui.org/unit"
+
+	"github.com/kgfly/SimpleNvimEditor/internal/config"
+	"github.com/kgfly/SimpleNvimEditor/internal/render"
+	"github.com/kgfly/SimpleNvimEditor/internal/uistate"
+)
+
+// newTestContext builds a minimal layout.Context suitable for driving
+// render/text code outside of a real Gio window: no GPU or display is
+// needed to build an op.Ops list, only Ops/Metric/Constraints.
+func newTestContext(ops *op.Ops, size image.Point) layout.Context {
+	return layout.Context{
+		Ops:         ops,
+		Metric:      unit.Metric{PxPerDp: 1, PxPerSp: 1},
+		Constraints: layout.Exact(size),
+	}
+}
+
+func TestMeasureReturnsPositiveMetrics(t *testing.T) {
+	shaper := render.NewShaper(config.Default().Editor)
+	face := render.FontFace(config.Default().Editor)
+
+	var ops op.Ops
+	gtx := newTestContext(&ops, image.Pt(2000, 2000))
+
+	m := render.Measure(gtx, shaper, face, unit.Sp(14))
+	if m.CellWidth <= 0 {
+		t.Errorf("CellWidth = %d, want > 0", m.CellWidth)
+	}
+	if m.CellHeight <= 0 {
+		t.Errorf("CellHeight = %d, want > 0", m.CellHeight)
+	}
+}
+
+func TestMeasureScalesWithFontSize(t *testing.T) {
+	shaper := render.NewShaper(config.Default().Editor)
+	face := render.FontFace(config.Default().Editor)
+
+	var ops1, ops2 op.Ops
+	small := render.Measure(newTestContext(&ops1, image.Pt(2000, 2000)), shaper, face, unit.Sp(10))
+	large := render.Measure(newTestContext(&ops2, image.Pt(2000, 2000)), shaper, face, unit.Sp(30))
+
+	if large.CellWidth <= small.CellWidth {
+		t.Errorf("CellWidth did not grow with font size: size10=%d size30=%d", small.CellWidth, large.CellWidth)
+	}
+	if large.CellHeight <= small.CellHeight {
+		t.Errorf("CellHeight did not grow with font size: size10=%d size30=%d", small.CellHeight, large.CellHeight)
+	}
+}
+
+func TestFontFaceRespectsUseSystemFonts(t *testing.T) {
+	bundled := render.FontFace(config.EditorConfig{UseSystemFonts: false})
+	if bundled.Typeface != "Go Mono" {
+		t.Errorf("bundled FontFace typeface = %q, want %q", bundled.Typeface, "Go Mono")
+	}
+
+	system := render.FontFace(config.EditorConfig{UseSystemFonts: true, FontFamily: "Consolas"})
+	if system.Typeface != "Consolas" {
+		t.Errorf("system FontFace typeface = %q, want %q", system.Typeface, "Consolas")
+	}
+}
+
+func TestNewShaperNeverReturnsNil(t *testing.T) {
+	if render.NewShaper(config.EditorConfig{UseSystemFonts: false}) == nil {
+		t.Fatalf("NewShaper(bundled) returned nil")
+	}
+	if render.NewShaper(config.EditorConfig{UseSystemFonts: true}) == nil {
+		t.Fatalf("NewShaper(system) returned nil")
+	}
+}
+
+// testFonts builds a Fonts value with fixed, deterministic Metrics (rather
+// than calling Measure) so Frame-painting tests below don't depend on
+// whatever glyphs the bundled font happens to produce.
+func testFonts(t *testing.T) render.Fonts {
+	t.Helper()
+	cfg := config.Default().Editor
+	return render.Fonts{
+		Shaper:  render.NewShaper(cfg),
+		Face:    render.FontFace(cfg),
+		Size:    unit.Sp(cfg.FontSize),
+		Metrics: render.Metrics{CellWidth: 8, CellHeight: 16, Baseline: 12},
+	}
+}
+
+// runFrame is a small helper that asserts render.Frame completes without
+// panicking for a given snapshot; Gio's op.Ops binary encoding isn't
+// practical to assert against directly (see IMPLEMENTATION_PLAN in the
+// project history for why pixel-level assertions are out of scope for unit
+// tests), so this is our regression guard against nil-pointer/index panics.
+func runFrame(t *testing.T, snap uistate.Snapshot) {
+	t.Helper()
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("render.Frame panicked: %v", r)
+		}
+	}()
+	var ops op.Ops
+	gtx := newTestContext(&ops, image.Pt(400, 300))
+	render.Frame(gtx, testFonts(t), snap)
+}
+
+func TestFrameEmptyState(t *testing.T) {
+	runFrame(t, uistate.New().Snapshot())
+}
+
+func TestFrameSingleGridWithContent(t *testing.T) {
+	s := uistate.New()
+	s.Apply([][]interface{}{
+		{"grid_resize", []interface{}{1, 10, 5}},
+		{"grid_line", []interface{}{1, 0, 0, []interface{}{[]interface{}{"hi"}}}},
+		{"grid_cursor_goto", []interface{}{1, 0, 0}},
+	})
+	runFrame(t, s.Snapshot())
+}
+
+func TestFrameMultigridWithFloat(t *testing.T) {
+	s := uistate.New()
+	s.Apply([][]interface{}{
+		{"grid_resize", []interface{}{1, 40, 20}},
+		{"grid_resize", []interface{}{2, 20, 10}},
+		{"win_pos", []interface{}{2, 0, 5, 5, 20, 10}},
+		{"grid_resize", []interface{}{3, 10, 3}},
+		{"win_float_pos", []interface{}{3, 0, "NW", 1, 2, 2, true}},
+		{"grid_cursor_goto", []interface{}{3, 1, 1}},
+	})
+	runFrame(t, s.Snapshot())
+}
+
+func TestFrameCursorOnUnplacedGridDoesNotPanic(t *testing.T) {
+	s := uistate.New()
+	s.Apply([][]interface{}{
+		{"grid_resize", []interface{}{1, 10, 5}},
+		// Cursor points at a grid id that was never resized/placed.
+		{"grid_cursor_goto", []interface{}{99, 0, 0}},
+	})
+	runFrame(t, s.Snapshot())
+}
+
+func TestFrameCursorShapes(t *testing.T) {
+	for _, shape := range []string{"block", "horizontal", "vertical"} {
+		t.Run(shape, func(t *testing.T) {
+			s := uistate.New()
+			s.Apply([][]interface{}{
+				{"grid_resize", []interface{}{1, 10, 5}},
+				{"grid_cursor_goto", []interface{}{1, 2, 2}},
+				{"mode_info_set", []interface{}{true, []interface{}{
+					map[string]interface{}{"cursor_shape": shape, "cell_percentage": 50},
+				}}},
+				{"mode_change", []interface{}{"normal", 0}},
+			})
+			runFrame(t, s.Snapshot())
+		})
+	}
+}
