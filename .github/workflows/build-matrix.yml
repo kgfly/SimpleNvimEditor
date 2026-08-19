@@ -1,0 +1,97 @@
+name: Build matrix
+
+# Reusable workflow (workflow_call): builds the simplenvim binary natively on
+# all 6 OS/arch combinations and uploads one archive artifact per combination.
+#
+# Why native runners instead of cross-compiling: this project uses cgo (Gio
+# needs X11/Wayland/EGL/Vulkan on Linux, Direct3D 11 on Windows, Cocoa/Metal
+# on macOS). Cross-compiling cgo GUI code needs a per-target sysroot and is
+# fragile; GitHub's free standard runner fleet covers all 6 natively.
+#
+# Shared by nightly.yml and release.yml so this logic exists exactly once.
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version stamped into archive names (e.g. v1.2.3 or nightly).'
+        required: false
+        default: 'dev'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.goos }}-${{ matrix.goarch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,    goos: linux,   goarch: amd64 }
+          - { os: ubuntu-24.04-arm, goos: linux,   goarch: arm64 }
+          - { os: windows-latest,   goos: windows, goarch: amd64 }
+          - { os: windows-11-arm,   goos: windows, goarch: arm64 }
+          - { os: macos-15-intel,   goos: darwin,  goarch: amd64 }
+          - { os: macos-latest,     goos: darwin,  goarch: arm64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: src/go.mod
+          cache-dependency-path: src/go.sum
+
+      - name: Install Linux build deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libx11-dev libx11-xcb-dev libxkbcommon-dev libxkbcommon-x11-dev libxcursor-dev libxfixes-dev libwayland-dev libgl1-mesa-dev libvulkan-dev
+
+      - name: Put mingw-w64 gcc on PATH (Windows, cgo)
+        if: runner.os == 'Windows'
+        run: |
+          "C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      # macOS needs nothing extra: Cocoa/Metal ship with the OS, and the
+      # runners already have the Xcode command-line tools installed.
+
+      - name: Build
+        working-directory: src
+        shell: bash
+        env:
+          CGO_ENABLED: '1'
+        run: |
+          set -euo pipefail
+          out=simplenvim
+          [ "${{ matrix.goos }}" = "windows" ] && out=simplenvim.exe
+          mkdir -p ../dist
+          go build -trimpath -ldflags "-s -w" -o "../dist/$out" ./cmd/simplenvim
+          ls -l "../dist/$out"
+
+      # .zip for Windows, .tar.gz everywhere else -- what each platform's
+      # users expect, and what package.yml downstream assumes.
+      - name: Archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="simplenvim_${{ inputs.version }}_${{ matrix.goos }}_${{ matrix.goarch }}"
+          cd dist
+          cp ../LICENSE ../README.md .
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            7z a "${name}.zip" simplenvim.exe LICENSE README.md
+          else
+            tar czf "${name}.tar.gz" simplenvim LICENSE README.md
+          fi
+          rm -f simplenvim simplenvim.exe LICENSE README.md
+          ls -l
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7

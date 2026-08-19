@@ -17,7 +17,9 @@ builds are wired up). Every `go` command below assumes you've `cd`ed into
 
 ## 1. Prerequisites (all platforms)
 
-- **Go 1.22+** — <https://go.dev/dl/>
+- **Go 1.26+** — <https://go.dev/dl/> (the exact minimum is whatever
+  `src/go.mod` declares; CI reads it from there rather than pinning a
+  second copy of the version)
 - **Neovim 0.9+** on your `PATH` (or pass `-nvim /path/to/nvim`) —
   <https://github.com/neovim/neovim/wiki/Installing-Neovim>
 
@@ -207,7 +209,69 @@ go test ./test/unit/... -coverpkg=./internal/... -coverprofile=cover.out
 go tool cover -func=cover.out
 ```
 
-## 7. What's implemented so far
+## 7. CI/CD
+
+Workflows live in [`.github/workflows/`](../.github/workflows). The design
+rationale (and the not-yet-implemented publishing channels) is in
+[`ci-cd-setup.md`](ci-cd-setup.md).
+
+| Workflow | Trigger | What it does |
+|---|---|---|
+| `pr.yml` | pull request / push to `main` | Build, vet, gofmt, unit + integration (`-race`) on Linux/macOS/Windows, e2e on Linux, coverage gate |
+| `build-matrix.yml` | called by others | Reusable: builds the binary natively on all 6 OS/arch combos, uploads archives |
+| `package.yml` | called by `release.yml` | Reusable: `.deb`/`.rpm` (nfpm), Windows `.exe` (Inno Setup), macOS `.dmg` (hdiutil) |
+| `nightly.yml` | 09:00 UTC daily, or manual | Builds **only if `main` moved**; publishes `nightly-YYYYMMDD` pre-release, keeps the newest 7 |
+| `release.yml` | tag `v*.*.*`, or manual | Full build + package + GitHub Release + build-provenance attestations |
+
+### Coverage gate
+
+`pr.yml` fails if total line coverage over `internal/...` drops below
+**75%** (`MIN_COVERAGE` in the workflow). Coverage comes from the unit +
+integration tiers only — e2e drives a separately-compiled binary, so its
+execution isn't visible to `-coverpkg` (see §6).
+
+The target in `ci-cd-setup.md` is 80%; the gate is set at 75% because
+that's just under the measured 77.8% at the time it was added. Raise it as
+the suite improves — it's a one-line change.
+
+The gate, the gofmt check, and the e2e tier all run on Linux only. That's
+deliberate: formatting is platform-independent, and the integration tier
+*skips itself* when `nvim` is absent, so gating on a runner with a flaky
+`nvim` install would fail for reasons unrelated to the change under test.
+
+### Reproducing CI locally
+
+```sh
+cd src
+go build ./... && go vet ./... && gofmt -l .
+go test ./test/unit/... ./test/integration/... -race \
+  -coverpkg=./internal/... -coverprofile=cover.out
+go tool cover -func=cover.out | tail -1     # the gated number
+go test ./test/e2e/...
+```
+
+Validate workflow edits before pushing — this catches bad expressions and
+shell bugs that plain YAML linting misses:
+
+```sh
+actionlint    # https://github.com/rhysd/actionlint
+```
+
+### Releasing
+
+```sh
+git tag v1.2.3 && git push origin v1.2.3
+```
+
+Builds are **unsigned** (Phase 1): macOS needs `xattr -c`
+or right-click → Open on first launch, Windows needs *More info* →
+*Run anyway*. Signing/notarization is Phase 2 — see `ci-cd-setup.md` §8.
+
+Publishing to winget, Homebrew, AUR, and apt/rpm repos is **not** wired
+up, since each needs secrets and external accounts that don't exist yet.
+`ci-cd-setup.md` §7 has the recipes for when that changes.
+
+## 8. What's implemented so far
 
 This is the Phase 1 MVP: a single window that
 attaches to Nvim's linegrid + multigrid UI protocol and renders it with a
@@ -230,7 +294,7 @@ Known, deliberate limitations at this stage:
   the base grid) aren't positioned correctly yet.
 - No IME/composition support yet.
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 **`pkg-config ... was not found in the pkg-config search path`** (Linux) —
 install the missing `-dev` package(s) named in the error; see §2 above for

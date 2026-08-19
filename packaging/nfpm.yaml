@@ -1,0 +1,38 @@
+# nfpm config -- builds .deb and .rpm from a prebuilt binary.
+# Driven by package.yml; VERSION and ARCH come from the environment.
+# Docs: https://nfpm.goreleaser.com/configuration/
+
+name: simplenvim
+arch: ${ARCH}
+version: ${VERSION}
+version_schema: semver
+release: 1
+section: editors
+priority: optional
+maintainer: kgfly <noreply@github.com>
+description: |
+  A simple, fast, native Neovim GUI written in Go using the Gio toolkit.
+  Drives a real, unmodified nvim process in a native GPU-rendered window.
+vendor: kgfly
+homepage: https://github.com/kgfly/SimpleNvimEditor
+license: MIT
+
+contents:
+  - src: stage/simplenvim
+    dst: /usr/bin/simplenvim
+    file_info:
+      mode: 0755
+  - src: LICENSE
+    dst: /usr/share/doc/simplenvim/LICENSE
+  - src: README.md
+    dst: /usr/share/doc/simplenvim/README.md
+
+# Neovim is a hard runtime requirement: this is a GUI *for* nvim, and the app
+# exits immediately if it cannot spawn the process.
+depends:
+  - neovim
+
+overrides:
+  rpm:
+    depends:
+      - neovim

@@ -27,6 +27,37 @@ binary.
 
 Simple and pure — no bloat, no bundled plugin marketplace, no telemetry.
 
+## Installing
+
+Grab a build for your platform from the
+[Releases page](https://github.com/kgfly/SimpleNvimEditor/releases).
+Linux gets `.deb`/`.rpm`/`.tar.gz`, Windows a `setup.exe`, macOS a `.dmg`,
+for both x64 and arm64. Nightly pre-releases are built from `main`.
+
+Neovim 0.9+ must be installed and on your `PATH` — this is a GUI *for*
+Neovim, not a copy of it.
+
+### First launch: unsigned builds
+
+Releases are **not code-signed or notarized** (that needs a paid Apple
+developer account and a Windows certificate). The binaries are fine; the OS
+just can't verify who made them, so it warns once:
+
+- **macOS** — right-click the app and choose *Open*, or:
+  ```sh
+  xattr -c /Applications/SimpleNvimEditor.app
+  ```
+- **Windows** — on the SmartScreen prompt, click *More info* → *Run anyway*.
+
+Every release does carry
+[GitHub build provenance](https://docs.github.com/actions/security-guides/using-artifact-attestations),
+so you can cryptographically confirm a download really was built by this
+repo's CI:
+
+```sh
+gh attestation verify <downloaded-file> -R kgfly/SimpleNvimEditor
+```
+
 ## Configuration
 
 SimpleNvimEditor reads an optional TOML config file from your OS's
@@ -57,6 +88,8 @@ above are exactly what's used if it's absent.
 
 - [`doc/developer.md`](doc/developer.md) — everything about building,
   running, testing, and contributing.
+- [`doc/ci-cd-setup.md`](doc/ci-cd-setup.md) — how CI/CD is wired up, and
+  what's deliberately deferred.
 
 ## License
 

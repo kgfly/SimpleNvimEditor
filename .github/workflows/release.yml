@@ -1,0 +1,118 @@
+name: Release
+
+# Tag-triggered official release: builds all 6 OS/arch combinations, produces
+# native installers, attaches everything to a GitHub Release, and generates
+# free GitHub-native build provenance (Artifact Attestations).
+#
+# Publishing to winget / Homebrew / AUR / apt-rpm repos is deliberately NOT
+# wired up -- those need secrets and external accounts. See doc/ci-cd-setup.md
+# section 7 when it is time to add them.
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build, with leading v (e.g. v1.2.3).'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  meta:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="${{ inputs.version }}"
+          else
+            tag="${GITHUB_REF#refs/tags/}"
+          fi
+          if ! echo "$tag" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::error::Tag '$tag' is not of the form vX.Y.Z"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+          echo "Releasing $tag (version ${tag#v})"
+
+  build:
+    needs: meta
+    uses: ./.github/workflows/build-matrix.yml
+    with:
+      version: ${{ needs.meta.outputs.version }}
+
+  package:
+    needs: [meta, build]
+    uses: ./.github/workflows/package.yml
+    with:
+      version: ${{ needs.meta.outputs.version }}
+
+  publish:
+    name: Publish GitHub Release
+    needs: [meta, build, package]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # create the release
+      id-token: write       # attestation signing
+      attestations: write   # record provenance
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: staging
+          merge-multiple: true
+
+      - name: Collect release assets
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          find staging -type f \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.deb' \
+            -o -name '*.rpm' -o -name '*.exe' -o -name '*.dmg' \) -exec mv -t dist/ {} +
+          cd dist
+          sha256sum * > SHA256SUMS.txt
+          echo "### Release assets" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat SHA256SUMS.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      # Free, GitHub-native supply-chain provenance. Verify with:
+      #   gh attestation verify <file> -R kgfly/SimpleNvimEditor
+      # NOTE: this is NOT macOS notarization or Windows Authenticode signing;
+      # it does not remove Gatekeeper/SmartScreen warnings.
+      - name: Generate build provenance attestations
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: 'dist/*'
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.meta.outputs.tag }}
+          name: ${{ needs.meta.outputs.tag }}
+          generate_release_notes: true
+          files: dist/*
+          body: |
+            ## Install
+
+            Download the asset for your platform below.
+
+            **These builds are unsigned.** On first launch:
+
+            - **macOS** -- right-click the app and choose *Open*, or run
+              `xattr -c /Applications/SimpleNvimEditor.app`
+            - **Windows** -- click *More info* then *Run anyway* on the
+              SmartScreen prompt
+
+            Verify provenance:
+            ```sh
+            gh attestation verify <file> -R ${{ github.repository }}
+            ```

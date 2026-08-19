@@ -1,0 +1,125 @@
+name: PR
+
+# Pull-request gate: build + vet + gofmt + tests on all three OSes.
+# Once branch protection requires these checks, a red run blocks the merge.
+
+on:
+  pull_request:
+    branches: [main]
+  # Also run on pushes to main so the checks have a baseline history and
+  # show up in the branch-protection status-check picker.
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  # A new push to the same PR cancels the previous, still-running check.
+  group: pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: src
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          # Single source of truth: the module's own go directive. Keeps CI
+          # from drifting away from src/go.mod on every Go upgrade.
+          go-version-file: src/go.mod
+          cache-dependency-path: src/go.sum
+
+      # --- OS-specific build dependencies (see doc/developer.md §2-§4) ---
+      - name: Install Linux build deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config libx11-dev libx11-xcb-dev libxkbcommon-dev \
+            libxkbcommon-x11-dev libxcursor-dev libxfixes-dev \
+            libwayland-dev libgl1-mesa-dev libvulkan-dev \
+            xvfb xdotool imagemagick neovim
+
+      - name: Install macOS build deps
+        if: runner.os == 'macOS'
+        run: brew install neovim
+
+      - name: Install Windows build deps
+        if: runner.os == 'Windows'
+        run: |
+          choco install neovim -y --no-progress
+          # mingw-w64 gcc is required for cgo (Gio's Direct3D 11 backend).
+          # windows-latest ships MSYS2 at C:\msys64; just put it on PATH.
+          "C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "C:\tools\neovim\nvim-win64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      # Formatting is platform-independent -- checking it on all three OSes
+      # would just be the same assertion three times (and gofmt line endings
+      # get noisy on Windows). Check it once, on Linux.
+      - name: Gofmt check
+        if: runner.os == 'Linux'
+        run: |
+          fmtout=$(gofmt -l .)
+          if [ -n "$fmtout" ]; then
+            echo "::error::gofmt found unformatted files:"
+            echo "$fmtout"
+            exit 1
+          fi
+          echo "All files gofmt-clean."
+
+      - name: Unit + integration tests with coverage
+        run: |
+          go test ./test/unit/... ./test/integration/... -race \
+            -coverpkg=./internal/... -coverprofile=cover.out
+
+      # e2e builds a real binary and drives it under Xvfb -- Linux-only by
+      # design (see doc/developer.md §6). It self-skips elsewhere anyway.
+      - name: End-to-end tests (Linux only)
+        if: runner.os == 'Linux'
+        run: go test ./test/e2e/... -v
+
+      # The coverage gate is enforced on Linux only, deliberately: the
+      # integration tier *skips itself* when nvim isn't on PATH, so a runner
+      # with a flaky nvim install would report artificially low coverage and
+      # fail the gate for an unrelated reason. Linux is the runner whose
+      # toolchain we control most tightly, so it owns the gate.
+      - name: Enforce minimum line coverage
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          # TODO: ratchet this to 80 (the target in doc/ci-cd-setup.md) once
+          # the suite gets there. Measured at 77.8% when this gate was added.
+          MIN_COVERAGE: '75'
+        run: |
+          pct=$(go tool cover -func=cover.out | tail -1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
+          echo "Total line coverage: ${pct}% (minimum: ${MIN_COVERAGE}%)"
+          echo "### Coverage: ${pct}% (min ${MIN_COVERAGE}%)" >> "$GITHUB_STEP_SUMMARY"
+          if ! awk -v p="$pct" -v m="$MIN_COVERAGE" 'BEGIN { exit !((p+0) >= (m+0)) }'; then
+            echo "::error::Coverage ${pct}% is below the required ${MIN_COVERAGE}%"
+            exit 1
+          fi
+
+      - name: Upload coverage profile
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-profile
+          path: src/cover.out
+          if-no-files-found: error

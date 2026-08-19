@@ -1,0 +1,134 @@
+name: Package
+
+# Reusable workflow: turns the raw binaries from build-matrix.yml into
+# OS-native installers -- .deb/.rpm (nfpm), Windows .exe (Inno Setup), and
+# macOS .dmg (hdiutil). Called by release.yml after the build matrix.
+#
+# Everything here is unsigned (Phase 1). See doc/ci-cd-setup.md section 8 for
+# what signing would add and why it is deliberately deferred.
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Release version, without the leading v (e.g. 1.2.3).'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  linux-packages:
+    name: .deb / .rpm (${{ matrix.goarch }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        goarch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: binary-linux-${{ matrix.goarch }}
+          path: incoming
+
+      - name: Install nfpm
+        run: |
+          set -euo pipefail
+          echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' \
+            | sudo tee /etc/apt/sources.list.d/goreleaser.list
+          sudo apt-get update
+          sudo apt-get install -y nfpm
+
+      - name: Stage binary
+        run: |
+          set -euo pipefail
+          mkdir -p stage
+          tar xzf incoming/*.tar.gz -C stage
+          chmod +x stage/simplenvim
+          ls -l stage
+
+      - name: Build packages
+        env:
+          VERSION: ${{ inputs.version }}
+          ARCH: ${{ matrix.goarch }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          nfpm package -f packaging/nfpm.yaml -p deb -t dist/
+          nfpm package -f packaging/nfpm.yaml -p rpm -t dist/
+          ls -l dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-linux-${{ matrix.goarch }}
+          path: dist/*
+          if-no-files-found: error
+
+  windows-installer:
+    name: Windows installer (${{ matrix.goarch }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        goarch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: binary-windows-${{ matrix.goarch }}
+          path: incoming
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Stage binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p stage
+          unzip -o incoming/*.zip -d stage
+          ls -l stage
+
+      # Inno Setup always emits an x86-64 installer executable; ArchitecturesInstallIn64BitMode
+      # in the .iss controls the target. The arm64 installer runs fine under
+      # Windows on ARM's x64 emulation layer.
+      - name: Compile installer
+        run: |
+          iscc /DMyAppVersion="${{ inputs.version }}" /DMyAppArch="${{ matrix.goarch }}" packaging/windows/simplenvim.iss
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-windows-${{ matrix.goarch }}
+          path: packaging/windows/Output/*.exe
+          if-no-files-found: error
+
+  macos-dmg:
+    name: macOS .dmg (${{ matrix.goarch }})
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        goarch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: binary-darwin-${{ matrix.goarch }}
+          path: incoming
+
+      - name: Build .app bundle and .dmg
+        env:
+          VERSION: ${{ inputs.version }}
+          ARCH: ${{ matrix.goarch }}
+        run: bash packaging/macos/make-dmg.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-darwin-${{ matrix.goarch }}
+          path: dist/*.dmg
+          if-no-files-found: error
