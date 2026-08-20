@@ -1,0 +1,76 @@
+name: Bug Report
+description: Report a bug in SimpleNvimEditor
+labels: ["bug"]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: SimpleNvimEditor version
+      description: "Output of `simplenvim --version`"
+      placeholder: "1.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: arch
+    attributes:
+      label: CPU architecture
+      options:
+        - x64
+        - arm64
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - macOS
+        - Windows
+    validations:
+      required: true
+
+  - type: input
+    id: os_version
+    attributes:
+      label: OS version
+      placeholder: "e.g. Ubuntu 24.04, macOS 15.1, Windows 11 24H2"
+    validations:
+      required: true
+
+  - type: input
+    id: desktop
+    attributes:
+      label: Desktop environment (Linux only)
+      placeholder: "e.g. GNOME, KDE Plasma, Sway"
+    validations:
+      required: false
+
+  - type: input
+    id: desktop_version
+    attributes:
+      label: Desktop environment version (Linux only)
+      placeholder: "e.g. GNOME 46, Plasma 6.1"
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug description
+      description: What happened and what did you expect?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps to trigger the bug.
+      placeholder: |
+        1. Open simplenvim
+        2. ...
+    validations:
+      required: true
