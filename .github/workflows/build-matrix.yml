@@ -68,7 +68,7 @@ jobs:
           out=simplenvim
           [ "${{ matrix.goos }}" = "windows" ] && out=simplenvim.exe
           mkdir -p ../dist
-          go build -trimpath -ldflags "-s -w" -o "../dist/$out" ./cmd/simplenvim
+          go build -trimpath -ldflags "-s -w -X main.version=${{ inputs.version }}" -o "../dist/$out" ./cmd/simplenvim
           ls -l "../dist/$out"
 
       # .zip for Windows, .tar.gz everywhere else -- what each platform's
