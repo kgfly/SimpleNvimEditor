@@ -14,13 +14,22 @@ import (
 	"github.com/kgfly/SimpleNvimEditor/internal/config"
 )
 
+// Set at build time via -ldflags "-X main.version=1.0.0".
+var version = "dev"
+
 func main() {
+	showVersion := flag.Bool("version", false, "print version and exit")
 	nvimPath := flag.String("nvim", "", "path to the nvim executable (overrides config file)")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [flags] [file...]\n\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Println(version)
+		return
+	}
 
 	cfg, err := config.Load()
 	if err != nil {
