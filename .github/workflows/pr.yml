@@ -85,6 +85,7 @@ jobs:
           echo "All files gofmt-clean."
 
       - name: Unit + integration tests with coverage
+        shell: bash
         run: |
           go test ./test/unit/... ./test/integration/... -race \
             -coverpkg=./internal/... -coverprofile=cover.out

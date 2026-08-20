@@ -257,11 +257,32 @@ shell bugs that plain YAML linting misses:
 actionlint    # https://github.com/rhysd/actionlint
 ```
 
-### Releasing
+### Releasing (official build)
+
+Pushing to `main` does **not** create a release automatically. An official
+release is triggered only when you push a semver tag:
 
 ```sh
-git tag v1.2.3 && git push origin v1.2.3
+git tag v1.0.0
+git push origin v1.0.0
 ```
+
+This kicks off `release.yml`, which:
+
+1. Validates the tag matches `vX.Y.Z`.
+2. Builds the binary natively on all 6 OS/arch combinations
+   (Linux/macOS/Windows × amd64/arm64) via `build-matrix.yml`.
+   The version is stamped into the binary (`simplenvim --version`).
+3. Produces native installers via `package.yml`:
+   `.deb` and `.rpm` (nfpm), Windows `.exe` (Inno Setup),
+   macOS `.dmg` (hdiutil).
+4. Generates SHA-256 checksums and GitHub Artifact Attestations
+   (supply-chain provenance).
+5. Creates a GitHub Release with all assets attached.
+
+You can also trigger a release manually without pushing a tag:
+**Actions → Release → Run workflow**, then enter the version (e.g.
+`v1.0.0`).
 
 Builds are **unsigned** (Phase 1): macOS needs `xattr -c`
 or right-click → Open on first launch, Windows needs *More info* →
