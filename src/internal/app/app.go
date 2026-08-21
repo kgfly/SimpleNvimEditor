@@ -49,6 +49,8 @@ type App struct {
 
 	cols, rows int
 	focused    bool
+	title      string
+	view       any
 }
 
 // New creates an App that will open the given files (may be empty).
@@ -65,7 +67,6 @@ func New(cfg config.Config, files []string) *App {
 func (a *App) Run(win *gioapp.Window) error {
 	a.win = win
 	win.Option(
-		gioapp.Title("SimpleNvimEditor"),
 		gioapp.Size(unit.Dp(1000), unit.Dp(650)),
 	)
 
@@ -75,9 +76,13 @@ func (a *App) Run(win *gioapp.Window) error {
 		Size:   unit.Sp(a.cfg.Editor.FontSize),
 	}
 
+	icon := appIcon()
 	var ops op.Ops
 	for {
 		switch e := win.Event().(type) {
+		case gioapp.ViewEvent:
+			a.view = e
+			setWindowIcon(e, icon)
 		case gioapp.DestroyEvent:
 			a.quit()
 			return e.Err
@@ -102,7 +107,16 @@ func (a *App) layout(gtx layout.Context) {
 	a.handleInput(gtx)
 	a.syncSize(size)
 
-	render.Frame(gtx, a.fonts, a.state.Snapshot())
+	snap := a.state.Snapshot()
+	if snap.Title != a.title {
+		a.title = snap.Title
+		if a.title != "" {
+			a.win.Option(gioapp.Title(a.title))
+			setWindowTitle(a.view, a.title)
+		}
+	}
+
+	render.Frame(gtx, a.fonts, snap)
 }
 
 // InputFilters returns the event filters describing everything the editor

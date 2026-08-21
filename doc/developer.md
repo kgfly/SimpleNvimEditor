@@ -109,6 +109,9 @@ go build -o simplenvim ./cmd/simplenvim   # produce a binary named simplenvim
                                            # empty buffer
 ```
 
+```sh
+go build ./...; go build -o simplenvim ./cmd/simplenvim  # one line
+```
 or skip the explicit build and just:
 
 ```sh

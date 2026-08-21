@@ -68,18 +68,14 @@ jobs:
           if-no-files-found: error
 
   windows-installer:
-    name: Windows installer (${{ matrix.goarch }})
+    name: Windows installer
     runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        goarch: [amd64, arm64]
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/download-artifact@v4
         with:
-          name: binary-windows-${{ matrix.goarch }}
+          name: binary-windows-amd64
           path: incoming
 
       - name: Install Inno Setup
@@ -93,17 +89,28 @@ jobs:
           unzip -o incoming/*.zip -d stage
           ls -l stage
 
-      # Inno Setup always emits an x86-64 installer executable; ArchitecturesInstallIn64BitMode
-      # in the .iss controls the target. The arm64 installer runs fine under
-      # Windows on ARM's x64 emulation layer.
       - name: Compile installer
         run: |
-          iscc /DMyAppVersion="${{ inputs.version }}" /DMyAppArch="${{ matrix.goarch }}" packaging/windows/simplenvim.iss
+          iscc /DMyAppVersion="${{ inputs.version }}" /DMyAppArch="amd64" packaging/windows/simplenvim.iss
+
+      - name: Build MSI
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          dotnet tool install --global wix
+          wix build packaging/windows/simplenvim.wxs \
+            -d Version="${{ inputs.version }}" \
+            -d Arch="x64" \
+            -d BinaryDir="$(pwd)/stage" \
+            -o "dist/simplenvim_${{ inputs.version }}_windows_amd64.msi"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: package-windows-${{ matrix.goarch }}
-          path: packaging/windows/Output/*.exe
+          name: package-windows-amd64
+          path: |
+            packaging/windows/Output/*.exe
+            dist/*.msi
           if-no-files-found: error
 
   macos-dmg:
@@ -131,4 +138,61 @@ jobs:
         with:
           name: package-darwin-${{ matrix.goarch }}
           path: dist/*.dmg
+          if-no-files-found: error
+
+  linux-arch:
+    name: Arch .pkg.tar.zst (${{ matrix.goarch }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        goarch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: binary-linux-${{ matrix.goarch }}
+          path: incoming
+
+      - name: Build .pkg.tar.zst
+        env:
+          VERSION: ${{ inputs.version }}
+          ARCH: ${{ matrix.goarch }}
+        run: |
+          set -euo pipefail
+          mkdir -p stage dist
+
+          tar xzf incoming/*.tar.gz -C stage
+          chmod +x stage/simplenvim
+
+          if [ "$ARCH" = "amd64" ]; then pkgarch="x86_64"; else pkgarch="aarch64"; fi
+
+          pkgdir="$(pwd)/pkgroot"
+          mkdir -p "$pkgdir/usr/bin" "$pkgdir/usr/share/doc/simplenvim" "$pkgdir/usr/share/licenses/simplenvim"
+          cp stage/simplenvim "$pkgdir/usr/bin/"
+          cp README.md "$pkgdir/usr/share/doc/simplenvim/"
+          cp LICENSE "$pkgdir/usr/share/licenses/simplenvim/"
+
+          cat > .PKGINFO <<EOF
+          pkgname = simplenvim
+          pkgver = ${VERSION}-1
+          pkgdesc = A simple, fast, native Neovim GUI written in Go using Gio
+          url = https://github.com/kgfly/SimpleNvimEditor
+          arch = ${pkgarch}
+          license = MIT
+          depend = neovim
+          EOF
+          sed -i 's/^          //' .PKGINFO
+
+          # Build the package archive
+          cd "$pkgdir"
+          cp ../.PKGINFO .
+          tar cf "../dist/simplenvim_${VERSION}_linux_${ARCH}.pkg.tar.zst" \
+            --zstd .PKGINFO usr/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-arch-${{ matrix.goarch }}
+          path: dist/*.pkg.tar.zst
           if-no-files-found: error

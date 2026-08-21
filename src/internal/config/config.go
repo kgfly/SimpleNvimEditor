@@ -22,12 +22,12 @@ type Config struct {
 type EditorConfig struct {
 	// FontSize is the monospace grid font size, in points.
 	FontSize float64 `toml:"font_size"`
-	// UseSystemFonts, when true, asks the text shaper to resolve
-	// FontFamily against fonts installed on the host OS instead of the
-	// bundled Go Mono typeface. Bundled is the safer cross-platform
-	// default because it never depends on what happens to be installed.
-	UseSystemFonts bool `toml:"use_system_fonts"`
-	// FontFamily is only consulted when UseSystemFonts is true.
+	// UseSystemFonts is set automatically when FontFamily differs from
+	// the bundled default; users never need to set it.
+	UseSystemFonts bool
+	// FontFamily selects the monospace font. When set to something other
+	// than the default "monospace", system font resolution is used
+	// instead of the bundled Go Mono typeface.
 	FontFamily string `toml:"font_family"`
 }
 
@@ -86,6 +86,9 @@ func Load() (Config, error) {
 	if cfg.Nvim.Command == "" {
 		cfg.Nvim.Command = Default().Nvim.Command
 	}
+	if cfg.Editor.FontFamily != "" && cfg.Editor.FontFamily != Default().Editor.FontFamily {
+		cfg.Editor.UseSystemFonts = true
+	}
 	return cfg, nil
 }
 
@@ -108,9 +111,8 @@ func FilePath() (string, error) {
 	return filepath.Join(dir, "config.toml"), nil
 }
 
-// DefaultFontFamilyForOS is unused by Default (which favors the bundled
-// font) but is kept as a documented starting point for users who opt into
-// UseSystemFonts.
+// DefaultFontFamilyForOS returns a reasonable monospace font family for
+// the current OS, as a starting point for users who want to set font_family.
 func DefaultFontFamilyForOS() string {
 	switch runtime.GOOS {
 	case "windows":

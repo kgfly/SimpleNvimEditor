@@ -66,6 +66,11 @@ func TestFontFaceRespectsUseSystemFonts(t *testing.T) {
 	if system.Typeface != "Consolas" {
 		t.Errorf("system FontFace typeface = %q, want %q", system.Typeface, "Consolas")
 	}
+
+	bold := render.FontFace(config.EditorConfig{UseSystemFonts: true, FontFamily: "Hack Nerd Font Mono Bold"})
+	if bold.Typeface != "Hack Nerd Font Mono" {
+		t.Errorf("bold FontFace typeface = %q, want %q", bold.Typeface, "Hack Nerd Font Mono")
+	}
 }
 
 func TestNewShaperNeverReturnsNil(t *testing.T) {
