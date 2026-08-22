@@ -6,6 +6,7 @@ package render
 
 import (
 	"image"
+	"strings"
 
 	"gioui.org/font"
 	"gioui.org/font/gofont"
@@ -49,9 +50,29 @@ func NewShaper(cfg config.EditorConfig) *text.Shaper {
 // FontFace returns the font.Font to request from the shaper for grid text.
 func FontFace(cfg config.EditorConfig) font.Font {
 	if cfg.UseSystemFonts {
-		return font.Font{Typeface: font.Typeface(cfg.FontFamily)}
+		family, weight := parseFontFamily(cfg.FontFamily)
+		return font.Font{Typeface: font.Typeface(family), Weight: weight}
 	}
 	return font.Font{Typeface: "Go Mono"}
+}
+
+func parseFontFamily(name string) (string, font.Weight) {
+	weights := map[string]font.Weight{
+		"Thin":       font.Thin,
+		"ExtraLight": font.ExtraLight,
+		"Light":      font.Light,
+		"Medium":     font.Medium,
+		"SemiBold":   font.SemiBold,
+		"Bold":       font.Bold,
+		"ExtraBold":  font.ExtraBold,
+		"Black":      font.Black,
+	}
+	for suffix, w := range weights {
+		if strings.HasSuffix(name, " "+suffix) {
+			return strings.TrimSuffix(name, " "+suffix), w
+		}
+	}
+	return name, font.Normal
 }
 
 // Measure lays out a probe string to derive the pixel dimensions of one grid

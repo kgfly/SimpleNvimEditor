@@ -5,7 +5,10 @@
 // highlights, cursor, and window placement that a renderer can draw.
 package uistate
 
-import "sync"
+import (
+	"strings"
+	"sync"
+)
 
 // State is the full client-side mirror of what Nvim's UI protocol has told
 // us. All mutation happens through Apply; reads should go through the
@@ -17,6 +20,8 @@ type State struct {
 	windows *WindowSet
 	hl      *HighlightTable
 	cursor  Cursor
+
+	title string
 
 	mode      string
 	modeIdx   int
@@ -82,6 +87,8 @@ func (s *State) Apply(batch [][]interface{}) bool {
 			s.applyModeInfoSet(args)
 		case "mode_change":
 			s.applyModeChange(args)
+		case "set_title":
+			s.applySetTitle(args)
 		case "busy_start":
 			s.busy = true
 		case "busy_stop":
@@ -117,6 +124,7 @@ type Snapshot struct {
 	Windows   []Placement
 	Highlight HighlightView
 	Cursor    Cursor
+	Title     string
 	Mode      string
 	ModeIdx   int
 	ModeInfos []ModeInfo
@@ -140,9 +148,30 @@ func (s *State) Snapshot() Snapshot {
 		Windows:   s.windows.ordered(),
 		Highlight: s.hl.view(),
 		Cursor:    s.cursor,
+		Title:     s.title,
 		Mode:      s.mode,
 		ModeIdx:   s.modeIdx,
 		ModeInfos: append([]ModeInfo(nil), s.modeInfos...),
 		Busy:      s.busy,
+	}
+}
+
+func (s *State) applySetTitle(args []interface{}) {
+	if len(args) == 0 {
+		return
+	}
+	row, _ := args[0].([]interface{})
+	if len(row) == 0 {
+		return
+	}
+	if t, ok := row[0].(string); ok {
+		// Strip "Dir:sub " prefixes produced by some titlestring
+		// configs (the colon+path pattern before the buffer name).
+		if ci := strings.Index(t, ":"); ci >= 0 {
+			if si := strings.Index(t[ci:], " "); si >= 0 {
+				t = strings.TrimSpace(t[ci+si:])
+			}
+		}
+		s.title = t
 	}
 }

@@ -2,9 +2,8 @@ name: Nightly
 
 # Builds all 6 platform/arch combinations once a day, but ONLY if the default
 # branch actually moved since the last nightly. Each nightly is published as
-# its own dated pre-release (nightly-YYYYMMDD); the 7 most recent are kept and
-# anything older is deleted, so the release list stays tidy without losing the
-# ability to bisect across the last week of builds.
+# its own dated pre-release (nightly-YYYYMMDD); the 3 most recent are kept and
+# anything older is deleted, so the release list stays tidy.
 
 on:
   schedule:
@@ -80,9 +79,16 @@ jobs:
     with:
       version: ${{ needs.check.outputs.tag }}
 
+  package:
+    needs: [check, build]
+    if: needs.check.outputs.changed == 'true'
+    uses: ./.github/workflows/package.yml
+    with:
+      version: ${{ needs.check.outputs.tag }}
+
   publish:
     name: Publish nightly release
-    needs: [check, build]
+    needs: [check, build, package]
     if: needs.check.outputs.changed == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -114,13 +120,13 @@ jobs:
             macOS Gatekeeper / Windows SmartScreen first-launch workarounds.
           files: dist/*
 
-      # Keep the 7 most recent nightlies; delete older releases AND their tags.
-      - name: Prune old nightlies (keep last 7)
+      # Keep the 3 most recent nightlies; delete older releases AND their tags.
+      - name: Prune old nightlies (keep last 3)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          keep=7
+          keep=3
           mapfile -t old < <(gh release list --limit 100 --json tagName \
             --jq '[.[] | select(.tagName | startswith("nightly-")) | .tagName] | sort | reverse | .['"$keep"':][]')
 

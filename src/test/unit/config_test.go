@@ -32,9 +32,6 @@ func TestDefaultValues(t *testing.T) {
 	if d.Editor.FontSize != 14 {
 		t.Errorf("default FontSize = %v, want 14", d.Editor.FontSize)
 	}
-	if d.Editor.UseSystemFonts {
-		t.Errorf("default UseSystemFonts = true, want false")
-	}
 	if d.Editor.FontFamily != "monospace" {
 		t.Errorf("default FontFamily = %q, want %q", d.Editor.FontFamily, "monospace")
 	}
@@ -80,7 +77,6 @@ func TestLoadOverlaysFileOnTopOfDefaults(t *testing.T) {
 	toml := `
 [editor]
 font_size = 20
-use_system_fonts = true
 font_family = "Consolas"
 
 [nvim]
@@ -99,7 +95,7 @@ extra_args = ["--clean"]
 		t.Errorf("FontSize = %v, want 20", cfg.Editor.FontSize)
 	}
 	if !cfg.Editor.UseSystemFonts {
-		t.Errorf("UseSystemFonts = false, want true")
+		t.Errorf("UseSystemFonts not auto-inferred from font_family")
 	}
 	if cfg.Editor.FontFamily != "Consolas" {
 		t.Errorf("FontFamily = %q, want %q", cfg.Editor.FontFamily, "Consolas")

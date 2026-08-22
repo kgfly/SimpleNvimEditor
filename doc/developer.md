@@ -15,7 +15,7 @@ under [`src/`](../src). Docs live in `doc/` (this file, plus
 builds are wired up). Every `go` command below assumes you've `cd`ed into
 `src/` first.
 
-## 1. Prerequisites (all platforms)
+## Prerequisites (all platforms)
 
 - **Go 1.26+** — <https://go.dev/dl/> (the exact minimum is whatever
   `src/go.mod` declares; CI reads it from there rather than pinning a
@@ -26,7 +26,7 @@ builds are wired up). Every `go` command below assumes you've `cd`ed into
 Everything else below is what your OS needs so that `cgo` can compile Gio's
 windowing/GPU backend.
 
-## 2. Linux
+##  Linux
 
 Gio's Linux backend uses `cgo` to talk to X11/Wayland and EGL/Vulkan, so you
 need the corresponding `-dev` packages and `pkg-config` installed *before*
@@ -66,7 +66,7 @@ You do **not** need a display server to *build*; you only need one to *run*
 the GUI (a normal desktop session, or Wayland/X11 over SSH forwarding, or a
 virtual display like Xvfb for headless testing).
 
-## 3. macOS
+## macOS
 
 Gio's macOS backend uses Cocoa/Metal, which ship with the OS — you just need
 the command-line build tools:
@@ -77,7 +77,7 @@ xcode-select --install
 
 Install Neovim via Homebrew: `brew install neovim`.
 
-## 4. Windows
+## Windows
 
 Gio's Windows backend uses Direct3D 11 via `cgo`, so you need a `gcc`
 toolchain on `PATH`. The most common way to get one:
@@ -95,7 +95,7 @@ Install Neovim via `scoop install neovim` or the
 Verify `gcc` is visible to Go: `go env CGO_ENABLED` should print `1`, and
 `gcc --version` should succeed in the same shell you run `go build` from.
 
-## 5. Build and run
+## Build and run
 
 All the Go code (and `go.mod`/`go.sum`) lives under [`src/`](../src), which
 is the Go module root — `cd` there first:
@@ -109,6 +109,9 @@ go build -o simplenvim ./cmd/simplenvim   # produce a binary named simplenvim
                                            # empty buffer
 ```
 
+```sh
+go build ./...; go build -o simplenvim ./cmd/simplenvim  # one line
+```
 or skip the explicit build and just:
 
 ```sh
@@ -129,7 +132,7 @@ For the `config.toml` file format (font/Nvim-launch settings, default
 values, and file locations per OS), see the
 [Configuration section in the README](../README.md#configuration).
 
-## 6. Testing
+## Testing
 
 Tests live under `src/test/`, split into three tiers: `unit`, `integration`,
 and `e2e`. Run everything at once from `src/` with:
@@ -209,7 +212,7 @@ go test ./test/unit/... -coverpkg=./internal/... -coverprofile=cover.out
 go tool cover -func=cover.out
 ```
 
-## 7. CI/CD
+## CI/CD
 
 Workflows live in [`.github/workflows/`](../.github/workflows). The design
 rationale (and the not-yet-implemented publishing channels) is in
@@ -257,19 +260,43 @@ shell bugs that plain YAML linting misses:
 actionlint    # https://github.com/rhysd/actionlint
 ```
 
+### Triggering a nightly build manually
+
+Go to **Actions → Nightly → Run workflow** on GitHub, optionally check
+**"Build even if there are no new commits since the last nightly"**, and
+click **Run workflow**. 
+
+Or use the CLI:
+
+```sh
+gh workflow run nightly.yml                  # normal run (skips if no new commits)
+gh workflow run nightly.yml -f force=true    # build regardless
+```
+
 ### Releasing (official build)
 
 Pushing to `main` does **not** create a release automatically. An official
-release is triggered only when you push a semver tag:
+release can be triggered in 3 ways:
+
+Go to **Actions → Release → Run workflow**, enter the version (e.g.
+`v1.0.0`), and click **Run workflow**. 
+
+Or use the CLI:
+
+```sh
+gh workflow run release.yml -f version=v1.0.0
+```
+
+Or push a server tag
 
 ```sh
 git tag v1.0.0
 git push origin v1.0.0
 ```
 
-This kicks off `release.yml`, which:
+Either way, `release.yml`:
 
-1. Validates the tag matches `vX.Y.Z`.
+1. Validates the version matches `vX.Y.Z`.
 2. Builds the binary natively on all 6 OS/arch combinations
    (Linux/macOS/Windows × amd64/arm64) via `build-matrix.yml`.
    The version is stamped into the binary (`simplenvim --version`).
@@ -280,10 +307,6 @@ This kicks off `release.yml`, which:
    (supply-chain provenance).
 5. Creates a GitHub Release with all assets attached.
 
-You can also trigger a release manually without pushing a tag:
-**Actions → Release → Run workflow**, then enter the version (e.g.
-`v1.0.0`).
-
 Builds are **unsigned** (Phase 1): macOS needs `xattr -c`
 or right-click → Open on first launch, Windows needs *More info* →
 *Run anyway*. Signing/notarization is Phase 2 — see `ci-cd-setup.md` §8.
@@ -292,30 +315,7 @@ Publishing to winget, Homebrew, AUR, and apt/rpm repos is **not** wired
 up, since each needs secrets and external accounts that don't exist yet.
 `ci-cd-setup.md` §7 has the recipes for when that changes.
 
-## 8. What's implemented so far
-
-This is the Phase 1 MVP: a single window that
-attaches to Nvim's linegrid + multigrid UI protocol and renders it with a
-plain monospace grid, forwards keyboard and mouse input, and resizes Nvim's
-grid to match the window. Tabline, cmdline, popupmenu, and messages are
-*not* externalized yet, so Nvim draws them directly into the grid — which
-means things like `:split`, buffer switching, and the built-in completion
-menu all already work, just with Nvim's own terminal-style look rather than
-native widgets.
-
-Known, deliberate limitations at this stage:
-
-- Closing the window sends Nvim `confirm qa` but doesn't render its
-  save-prompt specially — an unsaved-changes prompt will show up as normal
-  grid text.
-- The cursor is a solid block/beam/underline; it doesn't yet punch through
-  to show the character underneath, and has no blink or smooth-move
-  animation.
-- Nested floating windows anchored to another floating window (rather than
-  the base grid) aren't positioned correctly yet.
-- No IME/composition support yet.
-
-## 9. Troubleshooting
+## Troubleshooting
 
 **`pkg-config ... was not found in the pkg-config search path`** (Linux) —
 install the missing `-dev` package(s) named in the error; see §2 above for
