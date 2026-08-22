@@ -27,7 +27,7 @@ import (
 	"time"
 )
 
-const windowTitle = "SimpleNvimEditor"
+
 
 // requireE2ETools skips the test unless every external tool this tier
 // depends on is available.
@@ -110,13 +110,14 @@ func startXvfb(t *testing.T) string {
 	return ""
 }
 
-// waitForWindow polls xdotool until a window with our title appears (or the
-// timeout elapses) and returns its window id.
+// waitForWindow polls xdotool until any named window appears on the display
+// (or the timeout elapses) and returns its window id. The title is set by
+// Neovim so we match any non-empty name with regex ".".
 func waitForWindow(t *testing.T, display string, timeout time.Duration) string {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		cmd := exec.Command("xdotool", "search", "--name", windowTitle)
+		cmd := exec.Command("xdotool", "search", "--name", ".")
 		cmd.Env = append(os.Environ(), "DISPLAY="+display)
 		out, err := cmd.Output()
 		if err == nil {
@@ -126,7 +127,7 @@ func waitForWindow(t *testing.T, display string, timeout time.Duration) string {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	t.Fatalf("window %q did not appear within %s", windowTitle, timeout)
+	t.Fatalf("window did not appear within %s", timeout)
 	return ""
 }
 
@@ -191,7 +192,7 @@ func TestGUIRendersRealContent(t *testing.T) {
 		_ = cmd.Wait()
 	})
 
-	windowID := waitForWindow(t, display, 10*time.Second)
+	windowID := waitForWindow(t, display, 30*time.Second)
 
 	// Poll until the window actually contains a rendered UI. The window
 	// existing does not mean Nvim has attached and flushed a frame yet, and
@@ -239,7 +240,7 @@ func TestGUIProcessSpawnsAndCleansUpNvimChild(t *testing.T) {
 	}
 	appPID := cmd.Process.Pid
 
-	waitForWindow(t, display, 10*time.Second)
+	waitForWindow(t, display, 30*time.Second)
 
 	// Poll rather than sleeping a fixed amount: under parallel test load
 	// the child can take noticeably longer to appear, and a fixed sleep

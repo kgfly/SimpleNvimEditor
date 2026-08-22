@@ -99,8 +99,15 @@ jobs:
           set -euo pipefail
           mkdir -p dist
           dotnet tool install --global wix --version 5.0.2
+          # MSI requires a numeric #.#.#.# version; derive one from the input.
+          msi_ver="${{ inputs.version }}"
+          if [[ "$msi_ver" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            msi_ver="${msi_ver%%[-+]*}"
+          else
+            msi_ver="0.0.0.0"
+          fi
           wix build packaging/windows/simplenvim.wxs \
-            -d Version="${{ inputs.version }}" \
+            -d Version="${msi_ver}" \
             -d Arch="x64" \
             -d BinaryDir="$(pwd)/stage" \
             -o "dist/simplenvim_${{ inputs.version }}_windows_amd64.msi"
