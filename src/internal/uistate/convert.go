@@ -25,13 +25,6 @@ func toInt(v interface{}) int {
 	}
 }
 
-func toIntDefault(v interface{}, def int) int {
-	if v == nil {
-		return def
-	}
-	return toInt(v)
-}
-
 func toString(v interface{}) string {
 	s, _ := v.(string)
 	return s
