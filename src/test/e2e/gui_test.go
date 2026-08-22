@@ -83,12 +83,16 @@ func startXvfb(t *testing.T) string {
 		if err := cmd.Start(); err != nil {
 			continue
 		}
-		// Give the X server a moment to create its socket/lock file.
+		// Wait for the X server to be fully ready: the lock file appears
+		// quickly but the unix socket is what clients actually connect to.
 		ready := false
-		for i := 0; i < 50; i++ {
-			if _, err := os.Stat(lock); err == nil {
-				ready = true
-				break
+		sock := fmt.Sprintf("/tmp/.X11-unix/X%d", n)
+		for i := 0; i < 150; i++ {
+			if _, errL := os.Stat(lock); errL == nil {
+				if _, errS := os.Stat(sock); errS == nil {
+					ready = true
+					break
+				}
 			}
 			time.Sleep(20 * time.Millisecond)
 		}

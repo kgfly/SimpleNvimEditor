@@ -95,12 +95,10 @@ jobs:
 
       - name: Build MSI
         shell: bash
-        env:
-          WIX_OSMF_ACCEPT: "1"
         run: |
           set -euo pipefail
           mkdir -p dist
-          dotnet tool install --global wix
+          dotnet tool install --global wix --version 5.0.2
           wix build packaging/windows/simplenvim.wxs \
             -d Version="${{ inputs.version }}" \
             -d Arch="x64" \
