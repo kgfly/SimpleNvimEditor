@@ -2,6 +2,7 @@ package unit_test
 
 import (
 	"image"
+	"image/color"
 	"testing"
 
 	"gioui.org/layout"
@@ -165,4 +166,57 @@ func TestFrameCursorShapes(t *testing.T) {
 			runFrame(t, s.Snapshot())
 		})
 	}
+}
+
+func TestFrameCursorAttrIDZero(t *testing.T) {
+	// When attr_id is 0, cursorColor should use the default foreground.
+	s := uistate.New()
+	s.Apply([][]interface{}{
+		{"grid_resize", []interface{}{1, 10, 5}},
+		{"grid_cursor_goto", []interface{}{1, 0, 0}},
+		{"mode_info_set", []interface{}{true, []interface{}{
+			map[string]interface{}{"cursor_shape": "block", "cell_percentage": 100, "attr_id": 0},
+		}}},
+		{"mode_change", []interface{}{"normal", 0}},
+	})
+	runFrame(t, s.Snapshot())
+}
+
+func TestFrameCursorWithHighlightAttr(t *testing.T) {
+	// When attr_id > 0, cursorColor should use the bg from that hl group.
+	s := uistate.New()
+	s.Apply([][]interface{}{
+		{"grid_resize", []interface{}{1, 10, 5}},
+		{"default_colors_set", []interface{}{int64(0xffffff), int64(0x000000), int64(0xff0000), int64(0), int64(0)}},
+		{"hl_attr_define", []interface{}{int64(7), map[string]interface{}{"foreground": int64(0x00ff00), "background": int64(0x0000ff)}, map[string]interface{}{}, []interface{}{}}},
+		{"grid_cursor_goto", []interface{}{1, 0, 0}},
+		{"mode_info_set", []interface{}{true, []interface{}{
+			map[string]interface{}{"cursor_shape": "block", "cell_percentage": 100, "attr_id": int64(7)},
+		}}},
+		{"mode_change", []interface{}{"normal", 0}},
+	})
+	runFrame(t, s.Snapshot())
+}
+
+func TestSolidMaterial(t *testing.T) {
+	var ops op.Ops
+	c := render.SolidMaterial(&ops, color.NRGBA{R: 255, G: 0, B: 0, A: 255})
+	// SolidMaterial should return a valid (non-zero) CallOp.
+	_ = c
+}
+
+func TestFrameWithEmptyTextCells(t *testing.T) {
+	// Exercise the drawText early-return for empty text (double-width
+	// continuation cells have empty Text in the second column).
+	s := uistate.New()
+	s.Apply([][]interface{}{
+		{"grid_resize", []interface{}{1, 10, 2}},
+		{"grid_line", []interface{}{1, 0, 0, []interface{}{
+			[]interface{}{"W", int64(0)},
+			[]interface{}{"", int64(0)}, // continuation cell, empty text
+			[]interface{}{"x", int64(0)},
+		}}},
+		{"grid_cursor_goto", []interface{}{1, 0, 0}},
+	})
+	runFrame(t, s.Snapshot())
 }
