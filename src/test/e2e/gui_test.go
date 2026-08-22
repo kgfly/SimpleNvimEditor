@@ -27,8 +27,6 @@ import (
 	"time"
 )
 
-
-
 // requireE2ETools skips the test unless every external tool this tier
 // depends on is available.
 func requireE2ETools(t *testing.T) {
