@@ -21,13 +21,24 @@ rm -rf build dist
 mkdir -p build dist
 
 echo "==> Extracting binary"
-tar xzf incoming/*.tar.gz -C build
+tar xzf incoming/*.tar.gz --strip-components=1 -C build
 chmod +x build/simplenvim
 
 echo "==> Assembling ${BUNDLE}"
 mkdir -p "build/${BUNDLE}/Contents/MacOS"
 mkdir -p "build/${BUNDLE}/Contents/Resources"
 mv build/simplenvim "build/${BUNDLE}/Contents/MacOS/simplenvim"
+
+# Build an .icns icon set from the embedded icon.png.
+ICONSET="build/AppIcon.iconset"
+mkdir -p "${ICONSET}"
+ICON_SRC="src/internal/app/icon.png"
+for sz in 16 32 64 128 256 512; do
+  sips -z ${sz} ${sz} "${ICON_SRC}" --out "${ICONSET}/icon_${sz}x${sz}.png" >/dev/null
+  dbl=$((sz * 2))
+  sips -z ${dbl} ${dbl} "${ICON_SRC}" --out "${ICONSET}/icon_${sz}x${sz}@2x.png" >/dev/null
+done
+iconutil -c icns "${ICONSET}" -o "build/${BUNDLE}/Contents/Resources/AppIcon.icns"
 
 cat > "build/${BUNDLE}/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -42,6 +53,7 @@ cat > "build/${BUNDLE}/Contents/Info.plist" <<PLIST
   <key>CFBundleExecutable</key>        <string>simplenvim</string>
   <key>CFBundlePackageType</key>       <string>APPL</string>
   <key>CFBundleSignature</key>         <string>????</string>
+  <key>CFBundleIconFile</key>          <string>AppIcon</string>
   <key>LSMinimumSystemVersion</key>    <string>11.0</string>
   <key>NSHighResolutionCapable</key>   <true/>
   <key>NSSupportsAutomaticGraphicsSwitching</key><true/>
