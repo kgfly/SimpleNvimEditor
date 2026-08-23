@@ -149,6 +149,11 @@ func (a *App) handleInput(gtx layout.Context) {
 	event.Op(gtx.Ops, rootTag)
 	area.Pop()
 
+	// Tell Gio this tag is an active text-input client so the platform
+	// layer (NSTextInputClient on macOS) routes IME and voice dictation
+	// through EditEvent instead of swallowing it.
+	key.InputHintOp{Tag: rootTag, Hint: key.HintAny}.Add(gtx.Ops)
+
 	if !a.focused {
 		gtx.Execute(key.FocusCmd{Tag: rootTag})
 	}
@@ -164,6 +169,8 @@ func (a *App) handleInput(gtx layout.Context) {
 			a.focused = ev.Focus
 		case key.Event:
 			a.onKey(ev)
+		case key.EditEvent:
+			a.onEdit(ev)
 		case pointer.Event:
 			a.onPointer(ev)
 		}
@@ -177,6 +184,16 @@ func (a *App) onKey(e key.Event) {
 	if s := input.EncodeKey(e); s != "" {
 		a.proc.Input(s)
 	}
+}
+
+// onEdit forwards text produced by an input method (macOS Dictation, CJK
+// IME, Emoji picker, etc.) to Nvim. EditEvent.Text may contain multiple
+// characters; Nvim's nvim_input accepts them as a UTF-8 byte string.
+func (a *App) onEdit(e key.EditEvent) {
+	if a.proc == nil || e.Text == "" {
+		return
+	}
+	a.proc.Input(e.Text)
 }
 
 func (a *App) onPointer(e pointer.Event) {

@@ -220,3 +220,28 @@ func TestFrameWithEmptyTextCells(t *testing.T) {
 	})
 	runFrame(t, s.Snapshot())
 }
+
+func TestFrameCursorZeroPercentage(t *testing.T) {
+	s := uistate.New()
+	s.Apply([][]interface{}{
+		{"grid_resize", []interface{}{1, 10, 5}},
+		{"grid_cursor_goto", []interface{}{1, 0, 0}},
+		{"mode_info_set", []interface{}{true, []interface{}{
+			map[string]interface{}{"cursor_shape": "vertical", "cell_percentage": 0},
+		}}},
+		{"mode_change", []interface{}{"normal", 0}},
+	})
+	runFrame(t, s.Snapshot())
+}
+
+func TestFrameWithPlacedSplitWindow(t *testing.T) {
+	s := uistate.New()
+	s.Apply([][]interface{}{
+		{"grid_resize", []interface{}{1, 40, 20}},
+		{"grid_resize", []interface{}{2, 20, 10}},
+		{"win_pos", []interface{}{2, 0, 0, 0, 20, 10}},
+		{"grid_line", []interface{}{2, 0, 0, []interface{}{[]interface{}{"hello split"}}}},
+		{"grid_cursor_goto", []interface{}{2, 0, 5}},
+	})
+	runFrame(t, s.Snapshot())
+}

@@ -57,6 +57,21 @@ jobs:
       # macOS needs nothing extra: Cocoa/Metal ship with the OS, and the
       # runners already have the Xcode command-line tools installed.
 
+      - name: Embed Windows icon resource
+        if: matrix.goos == 'windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          pip install Pillow --quiet
+          python3 -c "
+          from PIL import Image
+          img = Image.open('src/internal/app/icon.png')
+          img.save('src/cmd/simplenvim/icon.ico', format='ICO',
+                   sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)])
+          "
+          cd src/cmd/simplenvim
+          windres -o app_windows.syso app.rc
+
       - name: Build
         working-directory: src
         shell: bash
@@ -76,15 +91,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          name="simplenvim_${{ inputs.version }}_${{ matrix.goos }}_${{ matrix.goarch }}"
+          archive="simplenvim_${{ inputs.version }}_${{ matrix.goos }}_${{ matrix.goarch }}"
+          dir="simplenvim_${{ matrix.goos }}_${{ matrix.goarch }}"
+          mkdir -p "dist/${dir}"
+          cp dist/simplenvim$([ "${{ matrix.goos }}" = "windows" ] && echo .exe) LICENSE README.md "dist/${dir}/"
           cd dist
-          cp ../LICENSE ../README.md .
           if [ "${{ matrix.goos }}" = "windows" ]; then
-            7z a "${name}.zip" simplenvim.exe LICENSE README.md
+            7z a "${archive}.zip" "${dir}/"
           else
-            tar czf "${name}.tar.gz" simplenvim LICENSE README.md
+            tar czf "${archive}.tar.gz" "${dir}/"
           fi
-          rm -f simplenvim simplenvim.exe LICENSE README.md
+          rm -rf "${dir}" simplenvim simplenvim.exe LICENSE README.md 2>/dev/null || true
           ls -l
 
       - name: Upload artifact

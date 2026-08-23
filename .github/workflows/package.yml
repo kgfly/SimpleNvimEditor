@@ -46,7 +46,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p stage
-          tar xzf incoming/*.tar.gz -C stage
+          tar xzf incoming/*.tar.gz --strip-components=1 -C stage
           chmod +x stage/simplenvim
           ls -l stage
 
@@ -59,7 +59,12 @@ jobs:
           mkdir -p dist
           nfpm package -f packaging/nfpm.yaml -p deb -t dist/
           nfpm package -f packaging/nfpm.yaml -p rpm -t dist/
-          ls -l dist
+          # Rename to include "linux" in filenames for clarity.
+          cd dist
+          for f in *.deb *.rpm; do
+            mv "$f" "$(echo "$f" | sed 's/^simplenvim_/simplenvim_linux_/' | sed 's/^simplenvim-/simplenvim-linux-/')"
+          done
+          ls -l
 
       - uses: actions/upload-artifact@v4
         with:
@@ -87,6 +92,8 @@ jobs:
           set -euo pipefail
           mkdir -p stage
           unzip -o incoming/*.zip -d stage
+          # Flatten the subdirectory created by the archive step.
+          mv stage/simplenvim_*/* stage/ 2>/dev/null || true
           ls -l stage
 
       - name: Compile installer
@@ -170,7 +177,7 @@ jobs:
           set -euo pipefail
           mkdir -p stage dist
 
-          tar xzf incoming/*.tar.gz -C stage
+          tar xzf incoming/*.tar.gz --strip-components=1 -C stage
           chmod +x stage/simplenvim
 
           if [ "$ARCH" = "amd64" ]; then pkgarch="x86_64"; else pkgarch="aarch64"; fi
