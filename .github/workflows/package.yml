@@ -59,10 +59,10 @@ jobs:
           mkdir -p dist
           nfpm package -f packaging/nfpm.yaml -p deb -t dist/
           nfpm package -f packaging/nfpm.yaml -p rpm -t dist/
-          # Rename to a consistent simplenvim-<version>-linux.<goarch>.{deb,rpm} pattern.
+          # Rename to simplenvim_<version>_linux_<goarch>.{deb,rpm}.
           cd dist
-          for f in *.deb; do mv "$f" "simplenvim-${VERSION}-linux.${ARCH}.deb"; done
-          for f in *.rpm; do mv "$f" "simplenvim-${VERSION}-linux.${ARCH}.rpm"; done
+          for f in *.deb; do mv "$f" "simplenvim_${VERSION}_linux_${ARCH}.deb"; done
+          for f in *.rpm; do mv "$f" "simplenvim_${VERSION}_linux_${ARCH}.rpm"; done
           ls -l
 
       - uses: actions/upload-artifact@v4
