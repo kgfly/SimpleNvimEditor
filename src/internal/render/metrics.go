@@ -39,10 +39,12 @@ type Fonts struct {
 // NewShaper builds a text shaper according to the configuration: either the
 // bundled, fully self-contained Go Mono typeface (the default, chosen so
 // the app renders identically regardless of what's installed on the host),
-// or the system font matcher when the user opts in.
+// or the system font matcher when the user opts in. System-font mode still
+// includes the bundled Go Mono as a fallback so text never disappears if a
+// configured family can't be found.
 func NewShaper(cfg config.EditorConfig) *text.Shaper {
 	if cfg.UseSystemFonts {
-		return text.NewShaper()
+		return text.NewShaper(text.WithCollection(gofont.Collection()))
 	}
 	return text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
 }
