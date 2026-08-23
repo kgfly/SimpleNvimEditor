@@ -2,6 +2,18 @@ name: Bug Report
 description: Report a bug in SimpleNvimEditor
 labels: ["bug"]
 body:
+  - type: markdown
+    attributes:
+      value: Please kindly search the existing (open/closed) issues before filing issues.
+
+  - type: checkboxes
+    id: duplicate-check
+    attributes:
+      label: Duplicate check
+      options:
+        - label: I have searched existing open and closed issues.
+          required: true
+
   - type: input
     id: version
     attributes:
@@ -16,7 +28,7 @@ body:
     attributes:
       label: CPU architecture
       options:
-        - x64
+        - amd64
         - arm64
     validations:
       required: true
