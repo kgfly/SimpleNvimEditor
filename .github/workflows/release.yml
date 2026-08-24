@@ -76,7 +76,7 @@ jobs:
           set -euo pipefail
           mkdir -p dist
           find staging -type f \( -name '*.tar.gz' -o -name '*.zip' -o -name '*.deb' \
-            -o -name '*.rpm' -o -name '*.exe' -o -name '*.dmg' -o -name '*.msi' \
+            -o -name '*.rpm' -o -name '*.exe' -o -name '*.dmg' \
             -o -name '*.pkg.tar.zst' \) -exec mv -t dist/ {} +
           cd dist
           sha256sum * > SHA256SUMS.txt

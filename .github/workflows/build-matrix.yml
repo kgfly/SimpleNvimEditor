@@ -95,6 +95,11 @@ jobs:
           dir="simplenvim_${{ matrix.goos }}_${{ matrix.goarch }}"
           mkdir -p "dist/${dir}"
           cp dist/simplenvim$([ "${{ matrix.goos }}" = "windows" ] && echo .exe) LICENSE README.md "dist/${dir}/"
+          if [ "${{ matrix.goos }}" = "windows" ]; then
+            cp src/cmd/simplenvim/icon.ico "dist/${dir}/"
+          elif [ "${{ matrix.goos }}" = "linux" ]; then
+            cp packaging/linux/simplenvim.desktop packaging/linux/icons/simplenvim_256x256.png "dist/${dir}/"
+          fi
           cd dist
           if [ "${{ matrix.goos }}" = "windows" ]; then
             7z a "${archive}.zip" "${dir}/"

@@ -28,10 +28,11 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 LicenseFile=..\..\LICENSE
 OutputDir=Output
-OutputBaseFilename=simplenvim_{#MyAppVersion}_windows_{#MyAppArch}_setup
+OutputBaseFilename=simplenvim_{#MyAppVersion}_windows_{#MyAppArch}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=..\..\src\cmd\simplenvim\icon.ico
 ; Per-user install by default so no UAC prompt is needed.
 PrivilegesRequiredOverridesAllowed=dialog
 #if MyAppArch == "arm64"
@@ -51,12 +52,13 @@ Name: "addtopath"; Description: "Add SimpleNvimEditor to the &PATH"; GroupDescri
 
 [Files]
 Source: "..\..\stage\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\src\cmd\simplenvim\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icon.ico"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icon.ico"; Tasks: desktopicon
 
 [Registry]
 Root: HKA; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; \

@@ -24,6 +24,9 @@
       <Component Id="MainExecutable">
         <File Source="$(var.BinaryDir)\simplenvim.exe" KeyPath="yes" />
       </Component>
+      <Component Id="AppIcon">
+        <File Id="AppIconFile" Source="$(var.BinaryDir)\icon.ico" KeyPath="yes" />
+      </Component>
       <Component Id="License">
         <File Source="$(var.BinaryDir)\LICENSE" KeyPath="yes" />
       </Component>

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=SimpleNvimEditor
+Comment=A simple, fast, native Neovim GUI
+Exec=simplenvim %F
+Icon=simplenvim
+Terminal=false
+Categories=Utility;TextEditor;
+MimeType=text/plain;text/x-c;text/x-c++;text/x-python;text/x-java;text/x-shellscript;text/html;text/css;text/javascript;application/json;application/xml;
+Keywords=neovim;nvim;editor;text;

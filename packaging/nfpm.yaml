@@ -26,6 +26,22 @@ contents:
     dst: /usr/share/doc/simplenvim/LICENSE
   - src: README.md
     dst: /usr/share/doc/simplenvim/README.md
+  - src: packaging/linux/simplenvim.desktop
+    dst: /usr/share/applications/simplenvim.desktop
+  - src: packaging/linux/icons/simplenvim_16x16.png
+    dst: /usr/share/icons/hicolor/16x16/apps/simplenvim.png
+  - src: packaging/linux/icons/simplenvim_32x32.png
+    dst: /usr/share/icons/hicolor/32x32/apps/simplenvim.png
+  - src: packaging/linux/icons/simplenvim_48x48.png
+    dst: /usr/share/icons/hicolor/48x48/apps/simplenvim.png
+  - src: packaging/linux/icons/simplenvim_64x64.png
+    dst: /usr/share/icons/hicolor/64x64/apps/simplenvim.png
+  - src: packaging/linux/icons/simplenvim_128x128.png
+    dst: /usr/share/icons/hicolor/128x128/apps/simplenvim.png
+  - src: packaging/linux/icons/simplenvim_256x256.png
+    dst: /usr/share/icons/hicolor/256x256/apps/simplenvim.png
+  - src: packaging/linux/icons/simplenvim_512x512.png
+    dst: /usr/share/icons/hicolor/512x512/apps/simplenvim.png
 
 # Neovim is a hard runtime requirement: this is a GUI *for* nvim, and the app
 # exits immediately if it cannot spawn the process.
