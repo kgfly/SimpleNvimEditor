@@ -5,7 +5,7 @@
 name: simplenvim
 arch: ${ARCH}
 version: ${VERSION}
-version_schema: semver
+version_schema: none
 release: 1
 section: editors
 priority: optional

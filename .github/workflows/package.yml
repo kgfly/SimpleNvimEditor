@@ -56,6 +56,13 @@ jobs:
           ARCH: ${{ matrix.goarch }}
         run: |
           set -euo pipefail
+          # Debian/RPM versions must start with a digit. Nightly tags like
+          # "nightly-20260824" need a numeric prefix.
+          PKG_VERSION="$VERSION"
+          if ! [[ "$PKG_VERSION" =~ ^[0-9] ]]; then
+            PKG_VERSION="0.0.0~${PKG_VERSION}"
+          fi
+          export VERSION="$PKG_VERSION"
           mkdir -p dist
           nfpm package -f packaging/nfpm.yaml -p deb -t dist/
           nfpm package -f packaging/nfpm.yaml -p rpm -t dist/
