@@ -119,6 +119,59 @@ cd src
 go run ./cmd/simplenvim path/to/file.txt
 ```
 
+### macOS: run as an app bundle — `scripts/run-macos.sh`
+
+On macOS, prefer:
+
+```sh
+./scripts/run-macos.sh path/to/file.txt
+```
+
+It builds the binary, wraps it in `build/SimpleNvimEditor.app` (generating
+`AppIcon.icns` from `src/internal/app/icon.png`), ad-hoc code-signs the
+bundle, launches it through LaunchServices, and then prints the bundle
+identity the running process actually got.
+
+`go build && ./simplenvim` still works and is fine for iterating on editor
+logic. What it cannot do is **voice dictation** — and it fails silently, with
+no error and no log line.
+
+The reason is that macOS resolves several per-app services — Dictation
+(`NSTextInputContext`), microphone/TCC permission, and the Dock icon —
+through the app's LaunchServices *bundle identity*. That identity comes from
+`Info.plist`, which only exists inside a `.app`. A bare Mach-O binary has
+none, so it inherits whatever launched it (Terminal, your editor, ...):
+
+| | `./simplenvim` | `scripts/run-macos.sh` |
+|---|---|---|
+| `CFBundleIdentifier` | `[ NULL ]` | `io.github.kgfly.simplenvimeditor` |
+| `fileType` | `????` | `APPL` |
+| Dock icon | parent process's | the app's own |
+| Voice dictation | never starts | works |
+
+Dictation has nothing to attach a session to, so pressing the dictation
+shortcut does nothing at all. Everything else — typing, Nvim, rendering —
+is unaffected, which is what makes this confusing to diagnose.
+
+**The Dock icon is the quickest tell:** the app's own icon means a real
+bundle identity; a generic or terminal icon means it has none, and dictation
+will not work. To confirm from the shell:
+
+```sh
+lsappinfo info -only bundleid "$(lsappinfo find pid=$(pgrep -n simplenvim) | head -1)"
+```
+
+Note that running the executable *from inside* a built bundle also works,
+since LaunchServices resolves identity from the enclosing `.app` — useful
+when you want dictation and stdout at the same time:
+
+```sh
+./build/SimpleNvimEditor.app/Contents/MacOS/simplenvim
+```
+
+For shipping a `.dmg`, see [Releasing](#releasing-official-build);
+`packaging/macos/make-dmg.sh` performs the same signing step.
+
 ### Command-line flags
 
 | Flag | Description |
@@ -325,6 +378,13 @@ the full list up front.
 sure you actually have a display to render to (`$DISPLAY` or
 `$WAYLAND_DISPLAY` set on Linux). For headless testing, run under Xvfb:
 `Xvfb :99 -screen 0 1024x768x24 & DISPLAY=:99 ./simplenvim`.
+
+**Voice dictation does nothing** (macOS) — you are almost certainly running
+a bare binary rather than an app bundle. Build with `./scripts/run-macos.sh`
+instead of `go build && ./simplenvim`; see
+[the section above](#macos-run-as-an-app-bundle--scriptsrun-macossh). The
+Dock icon is the giveaway: a generic or terminal icon means the process has
+no bundle identity, and Dictation has nothing to attach to.
 
 **Nvim seems to open but nothing happens after that** — check that `nvim`
 (or your configured `-nvim` path) actually starts standalone; a broken user
