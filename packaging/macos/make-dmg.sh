@@ -61,6 +61,26 @@ cat > "build/${BUNDLE}/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
+# Ad-hoc sign the bundle. This is NOT Gatekeeper notarization (that needs a
+# paid Apple account); it establishes the app's *identity*, which is a
+# separate thing and matters functionally:
+#
+# Without this step the bundle inherits the Go linker's default ad-hoc
+# signature, which reports `Identifier=a.out` and leaves Info.plist unsealed
+# ("Info.plist=not bound"), so `codesign --verify --strict` fails outright.
+# macOS ties per-app services -- notably Dictation/NSTextInputContext, which
+# looks the app up by bundle identity -- to a verifiable signature, so an
+# unsigned bundle can silently lose voice typing.
+#
+# `-s -` means ad-hoc (no certificate required), so this works in CI with no
+# secrets and no paid account.
+echo "==> Signing ${BUNDLE} (ad-hoc)"
+codesign --force --deep --sign - \
+  --identifier io.github.kgfly.simplenvimeditor \
+  "build/${BUNDLE}"
+codesign --verify --strict "build/${BUNDLE}"
+codesign -dvv "build/${BUNDLE}" 2>&1 | grep -E '^Identifier|Info.plist'
+
 echo "==> Building .dmg"
 STAGE="build/dmg-root"
 mkdir -p "${STAGE}"

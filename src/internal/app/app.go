@@ -10,6 +10,7 @@ import (
 	"time"
 
 	gioapp "gioui.org/app"
+	"gioui.org/f32"
 	"gioui.org/io/event"
 	"gioui.org/io/key"
 	"gioui.org/io/pointer"
@@ -51,6 +52,11 @@ type App struct {
 	focused    bool
 	title      string
 	view       any
+
+	// ime mirrors just enough document state to keep the platform's
+	// input method (macOS Dictation, CJK IMEs, emoji picker) alive; see
+	// ime.go.
+	ime imeShadow
 }
 
 // New creates an App that will open the given files (may be empty).
@@ -59,6 +65,7 @@ func New(cfg config.Config, files []string) *App {
 		cfg:   cfg,
 		files: files,
 		state: uistate.New(),
+		ime:   newIMEShadow(),
 	}
 }
 
@@ -167,18 +174,66 @@ func (a *App) handleInput(gtx layout.Context) {
 		switch ev := e.(type) {
 		case key.FocusEvent:
 			a.focused = ev.Focus
+			// A focus change ends any composition the old handler
+			// owned, so start the next one from a clean slate.
+			a.ime.reset()
 		case key.Event:
 			a.onKey(ev)
 		case key.EditEvent:
 			a.onEdit(ev)
+		case key.SnippetEvent:
+			// The platform is telling us which slice of the document
+			// it wants to see; our shadow is small enough to always
+			// report in full, so there is nothing to recompute.
+		case key.SelectionEvent:
+			a.ime.setSelection(key.Range(ev))
+		case key.CompositionEvent:
+			a.ime.setComposing(key.Range(ev))
 		case pointer.Event:
 			a.onPointer(ev)
 		}
+	}
+
+	// Report our (shadow) document state back to the platform every
+	// frame. Without this the IME sees a document that never changes,
+	// concludes the app ignored its edit, and cancels the composition —
+	// which is exactly what made voice dictation appear to do nothing.
+	a.ime.trimIfIdle()
+	a.ime.sync(gtx, rootTag, a.caret(), image.Rectangle{})
+}
+
+// caret reports where Nvim's cursor is in window pixels, so macOS can place
+// the dictation/candidate popup next to the text being edited rather than
+// in the window's top-left corner.
+func (a *App) caret() key.Caret {
+	m := a.fonts.Metrics
+	if m.CellWidth == 0 {
+		return key.Caret{}
+	}
+	snap := a.state.Snapshot()
+	origin, ok := render.GridOrigin(snap, snap.Cursor.GridID, m)
+	if !ok {
+		return key.Caret{}
+	}
+	x := float32(origin.X + snap.Cursor.Col*m.CellWidth)
+	baseline := float32(origin.Y + snap.Cursor.Row*m.CellHeight + m.Baseline)
+	return key.Caret{
+		Pos:     f32.Pt(x, baseline),
+		Ascent:  float32(m.Baseline),
+		Descent: float32(m.CellHeight - m.Baseline),
 	}
 }
 
 func (a *App) onKey(e key.Event) {
 	if a.proc == nil {
+		return
+	}
+	// Printable keys arrive twice on macOS: once as an EditEvent (via
+	// NSTextInputClient's insertText:, which is also how Dictation and
+	// IMEs deliver text) and once as this key.Event. X11 does the same.
+	// Sending both would type every character twice, so text is handled
+	// exclusively in onEdit and only non-text keys are encoded here.
+	if input.IsTextKey(e) {
 		return
 	}
 	if s := input.EncodeKey(e); s != "" {
@@ -187,13 +242,31 @@ func (a *App) onKey(e key.Event) {
 }
 
 // onEdit forwards text produced by an input method (macOS Dictation, CJK
-// IME, Emoji picker, etc.) to Nvim. EditEvent.Text may contain multiple
-// characters; Nvim's nvim_input accepts them as a UTF-8 byte string.
+// IME, emoji picker) or an ordinary printable keypress to Nvim.
+//
+// An EditEvent means "replace Range with Text". While a composition is in
+// flight the input method revises its guess in place, so each update
+// replaces the range it marked previously ("hello" -> "hello wor" ->
+// "hello world"); an ordinary keypress carries an empty range and simply
+// inserts. Nvim has no notion of provisional text, so a replacement is
+// expressed by backspacing over the marked runes and typing the new
+// version — in a single nvim_input call, so a redraw can never observe the
+// half-deleted state.
+//
+// The rune count comes from Range rather than from tracking composition
+// state, because the platform emits the EditEvent *before* the
+// CompositionEvent that marks the range: on the first preedit update we
+// would not yet know a composition had started.
 func (a *App) onEdit(e key.EditEvent) {
-	if a.proc == nil || e.Text == "" {
+	if a.proc == nil {
 		return
 	}
-	a.proc.Input(e.Text)
+
+	stale := a.ime.replace(e.Range, e.Text)
+
+	if keys := input.Backspaces(stale) + input.EncodeText(e.Text); keys != "" {
+		a.proc.Input(keys)
+	}
 }
 
 func (a *App) onPointer(e pointer.Event) {

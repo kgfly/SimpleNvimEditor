@@ -78,7 +78,7 @@ func drawText(gtx layout.Context, fonts Fonts, x, y int, text string, fg color.N
 // ModeInfo. Text-under-cursor punch-through and blink/smooth-move animation
 // are not implemented yet (see IMPLEMENTATION_PLAN.md Phase 2).
 func drawCursor(gtx layout.Context, fonts Fonts, snap uistate.Snapshot, defFg color.NRGBA) {
-	origin, ok := gridOrigin(snap, snap.Cursor.GridID, fonts.Metrics)
+	origin, ok := GridOrigin(snap, snap.Cursor.GridID, fonts.Metrics)
 	if !ok {
 		return
 	}
@@ -118,9 +118,11 @@ func cursorColor(hv uistate.HighlightView, attrID int, defFg color.NRGBA) color.
 	return bg
 }
 
-// gridOrigin returns the top-left pixel position of the given grid id
-// within the window, or false if the grid isn't currently placed.
-func gridOrigin(snap uistate.Snapshot, gridID int, m Metrics) (image.Point, bool) {
+// GridOrigin returns the top-left pixel position of the given grid id
+// within the window, or false if the grid isn't currently placed. It is
+// exported because the IME needs the same mapping to tell the platform
+// where the caret is on screen.
+func GridOrigin(snap uistate.Snapshot, gridID int, m Metrics) (image.Point, bool) {
 	if gridID == 1 {
 		return image.Pt(0, 0), true
 	}

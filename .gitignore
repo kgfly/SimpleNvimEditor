@@ -42,3 +42,9 @@ go.work.sum
 
 # Locally built binary (go build -o simplenvim ./cmd/simplenvim)
 /src/simplenvim
+
+# Build output: the .app bundle, .dmg and generated .icns produced by
+# scripts/run-macos.sh and packaging/macos/make-dmg.sh.
+/build/
+/dist/
+**/.vscode
