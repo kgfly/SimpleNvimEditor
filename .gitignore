@@ -48,3 +48,6 @@ go.work.sum
 /build/
 /dist/
 **/.vscode
+
+# Test orchestration state
+.wibey-test/

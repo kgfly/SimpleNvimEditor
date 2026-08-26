@@ -177,9 +177,18 @@ For shipping a `.dmg`, see [Releasing](#releasing-official-build);
 | Flag | Description |
 |---|---|
 | `-nvim /path/to/nvim` | Overrides the `nvim` executable to launch (default: whatever the config file says, or plain `nvim` resolved via `PATH`). |
+| `--maximized` | Starts the editor window maximized. |
 
-Any remaining positional arguments are treated as files to open, exactly
-like `nvim file1 file2`.
+Positional arguments open files as usual. To forward Nvim flags or commands,
+put them after `--`; they are passed to Nvim unchanged and in order:
+
+```sh
+/Applications/SimpleNvimEditor.app/Contents/MacOS/simplenvim \
+  --maximized -- -c term -c edit /Users/k0g0kfq/data1/.nnn/n.todo
+```
+
+All simplenvim flags must come before `--`. This boundary prevents Nvim flags
+such as `-c` from being mistaken for application flags.
 
 For the `config.toml` file format (font/Nvim-launch settings, default
 values, and file locations per OS), see the
