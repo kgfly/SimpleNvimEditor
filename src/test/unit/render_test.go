@@ -245,3 +245,82 @@ func TestFrameWithPlacedSplitWindow(t *testing.T) {
 	})
 	runFrame(t, s.Snapshot())
 }
+
+func TestGridOriginBaseGrid(t *testing.T) {
+	snap := uistate.New().Snapshot()
+	pt, ok := render.GridOrigin(snap, 1, render.Metrics{CellWidth: 8, CellHeight: 16})
+	if !ok {
+		t.Fatal("GridOrigin for grid 1 should always return true")
+	}
+	if pt.X != 0 || pt.Y != 0 {
+		t.Fatalf("GridOrigin(1) = %v, want (0,0)", pt)
+	}
+}
+
+func TestGridOriginPlacedGrid(t *testing.T) {
+	s := uistate.New()
+	s.Apply([][]interface{}{
+		{"grid_resize", []interface{}{1, 80, 24}},
+		{"grid_resize", []interface{}{2, 40, 12}},
+		{"win_pos", []interface{}{2, 0, 3, 5, 40, 12}},
+	})
+	m := render.Metrics{CellWidth: 8, CellHeight: 16}
+	pt, ok := render.GridOrigin(s.Snapshot(), 2, m)
+	if !ok {
+		t.Fatal("GridOrigin should find placed grid")
+	}
+	if pt.X != 5*8 || pt.Y != 3*16 {
+		t.Fatalf("GridOrigin(2) = %v, want (%d,%d)", pt, 5*8, 3*16)
+	}
+}
+
+func TestGridOriginUnplacedGrid(t *testing.T) {
+	snap := uistate.New().Snapshot()
+	_, ok := render.GridOrigin(snap, 99, render.Metrics{CellWidth: 8, CellHeight: 16})
+	if ok {
+		t.Fatal("GridOrigin should return false for unplaced grid")
+	}
+}
+
+func TestFontFaceWeightSuffixes(t *testing.T) {
+	cases := []struct {
+		family   string
+		wantFace string
+	}{
+		{"Hack Thin", "Hack"},
+		{"Hack ExtraLight", "Hack"},
+		{"Hack Light", "Hack"},
+		{"Hack Medium", "Hack"},
+		{"Hack SemiBold", "Hack"},
+		{"Hack Bold", "Hack"},
+		{"Hack ExtraBold", "Hack"},
+		{"Hack Black", "Hack"},
+		{"Hack", "Hack"},
+	}
+	for _, c := range cases {
+		f := render.FontFace(config.EditorConfig{UseSystemFonts: true, FontFamily: c.family})
+		if string(f.Typeface) != c.wantFace {
+			t.Errorf("FontFace(%q).Typeface = %q, want %q", c.family, f.Typeface, c.wantFace)
+		}
+	}
+}
+
+func TestFrameWindowWithMissingGrid(t *testing.T) {
+	// A placement references a grid that was never resized/created. The
+	// "if !ok { continue }" branch in Frame should handle this gracefully.
+	s := uistate.New()
+	s.Apply([][]interface{}{
+		{"grid_resize", []interface{}{1, 40, 20}},
+		// Place grid 7 which doesn't exist — exercises the continue branch.
+		{"win_pos", []interface{}{7, 0, 0, 0, 10, 5}},
+	})
+	runFrame(t, s.Snapshot())
+}
+
+func TestFrameNoBaseGrid(t *testing.T) {
+	// State with no grid 1 at all — the "if base, ok" branch is false.
+	snap := uistate.Snapshot{
+		Highlight: uistate.New().Snapshot().Highlight,
+	}
+	runFrame(t, snap)
+}

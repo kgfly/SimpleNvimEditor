@@ -189,3 +189,113 @@ func TestDefaultFontFamilyForOSNeverEmpty(t *testing.T) {
 		t.Fatalf("DefaultFontFamilyForOS() returned empty string")
 	}
 }
+
+func TestLoadExplicitZeroFontSizeAndEmptyCommand(t *testing.T) {
+	withIsolatedConfigDir(t)
+
+	path, err := config.FilePath()
+	if err != nil {
+		t.Fatalf("FilePath() error = %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	toml := `
+[editor]
+font_size = 0
+
+[nvim]
+command = ""
+`
+	if err := os.WriteFile(path, []byte(toml), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.Editor.FontSize != config.Default().Editor.FontSize {
+		t.Errorf("zero FontSize should fall back to default, got %v", cfg.Editor.FontSize)
+	}
+	if cfg.Nvim.Command != config.Default().Nvim.Command {
+		t.Errorf("empty Command should fall back to default, got %q", cfg.Nvim.Command)
+	}
+}
+
+func TestLoadNegativeFontSize(t *testing.T) {
+	withIsolatedConfigDir(t)
+
+	path, err := config.FilePath()
+	if err != nil {
+		t.Fatalf("FilePath() error = %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("[editor]\nfont_size = -5\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.Editor.FontSize != config.Default().Editor.FontSize {
+		t.Errorf("negative FontSize should fall back to default, got %v", cfg.Editor.FontSize)
+	}
+}
+
+func TestLoadUnreadableFile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("chmod does not restrict reads on Windows")
+	}
+	withIsolatedConfigDir(t)
+
+	path, err := config.FilePath()
+	if err != nil {
+		t.Fatalf("FilePath() error = %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.WriteFile(path, []byte("[editor]\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	if err := os.Chmod(path, 0o000); err != nil {
+		t.Skipf("cannot chmod on this platform: %v", err)
+	}
+	t.Cleanup(func() { os.Chmod(path, 0o644) })
+
+	_, err = config.Load()
+	if err == nil {
+		t.Fatal("Load() with unreadable file should return an error")
+	}
+}
+
+func TestLoadSameFontFamilyAsDefault(t *testing.T) {
+	withIsolatedConfigDir(t)
+
+	path, err := config.FilePath()
+	if err != nil {
+		t.Fatalf("FilePath() error = %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	// Set font_family to the same as default — UseSystemFonts should NOT be set.
+	toml := `[editor]
+font_family = "monospace"
+`
+	if err := os.WriteFile(path, []byte(toml), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.Editor.UseSystemFonts {
+		t.Error("UseSystemFonts should not be set when font_family == default")
+	}
+}

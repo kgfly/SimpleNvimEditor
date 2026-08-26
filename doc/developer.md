@@ -282,7 +282,7 @@ rationale (and the not-yet-implemented publishing channels) is in
 ### Coverage gate
 
 `pr.yml` fails if total line coverage over `internal/...` drops below
-**75%** (`MIN_COVERAGE` in the workflow). Coverage comes from the unit +
+**80%** (`MIN_COVERAGE` in the workflow). Coverage comes from the unit +
 integration tiers only — e2e drives a separately-compiled binary, so its
 execution isn't visible to `-coverpkg` (see §6).
 
