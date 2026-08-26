@@ -40,8 +40,9 @@ const anyModifier = key.ModCtrl | key.ModCommand | key.ModShift | key.ModAlt | k
 
 // App owns everything needed to run one editor window.
 type App struct {
-	cfg   config.Config
-	files []string
+	cfg      config.Config
+	nvimArgs []string
+	options  Options
 
 	win   *gioapp.Window
 	fonts render.Fonts
@@ -59,13 +60,19 @@ type App struct {
 	ime imeShadow
 }
 
-// New creates an App that will open the given files (may be empty).
-func New(cfg config.Config, files []string) *App {
+// Options controls how the editor window starts.
+type Options struct {
+	Maximized bool
+}
+
+// New creates an App that starts Nvim with the given arguments (may be empty).
+func New(cfg config.Config, nvimArgs []string, options Options) *App {
 	return &App{
-		cfg:   cfg,
-		files: files,
-		state: uistate.New(),
-		ime:   newIMEShadow(),
+		cfg:      cfg,
+		nvimArgs: append([]string(nil), nvimArgs...),
+		options:  options,
+		state:    uistate.New(),
+		ime:      newIMEShadow(),
 	}
 }
 
@@ -73,9 +80,11 @@ func New(cfg config.Config, files []string) *App {
 // calling goroutine, matching Gio's own convention (see gioui.org/app doc).
 func (a *App) Run(win *gioapp.Window) error {
 	a.win = win
-	win.Option(
-		gioapp.Size(unit.Dp(1000), unit.Dp(650)),
-	)
+	windowOptions := []gioapp.Option{gioapp.Size(unit.Dp(1000), unit.Dp(650))}
+	if a.options.Maximized {
+		windowOptions = append(windowOptions, gioapp.Maximized.Option())
+	}
+	win.Option(windowOptions...)
 
 	a.fonts = render.Fonts{
 		Shaper: render.NewShaper(a.cfg.Editor),
@@ -322,7 +331,7 @@ func (a *App) syncSize(size image.Point) {
 // big the initial grid should be, and starts the goroutine that pumps its
 // redraw events into our state model.
 func (a *App) startNvim() {
-	proc, err := nvimproc.Spawn(a.cfg.Nvim.Command, a.cfg.Nvim.ExtraArgs, a.files, a.cols, a.rows)
+	proc, err := nvimproc.Spawn(a.cfg.Nvim.Command, a.cfg.Nvim.ExtraArgs, a.nvimArgs, a.cols, a.rows)
 	if err != nil {
 		// Nothing meaningful to render without Nvim; surfacing to stderr
 		// is enough for the MVP (see IMPLEMENTATION_PLAN.md for a real
