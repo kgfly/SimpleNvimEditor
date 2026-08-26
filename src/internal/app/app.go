@@ -38,10 +38,22 @@ var rootTag = new(int)
 // and shifted glyphs like ":").
 const anyModifier = key.ModCtrl | key.ModCommand | key.ModShift | key.ModAlt | key.ModSuper
 
+// Options are the launch-time choices that come from the command line
+// rather than the config file. Keeping them in one struct means adding the
+// next flag doesn't churn New's signature for every caller and test.
+type Options struct {
+	// NvimArgs are passed to the Nvim invocation verbatim: pass-through
+	// arguments first, then files (see the cli package, which is the one
+	// place that ordering is decided).
+	NvimArgs []string
+	// Maximized starts the window filling the monitor's work area.
+	Maximized bool
+}
+
 // App owns everything needed to run one editor window.
 type App struct {
-	cfg   config.Config
-	files []string
+	cfg  config.Config
+	opts Options
 
 	win   *gioapp.Window
 	fonts render.Fonts
@@ -59,23 +71,37 @@ type App struct {
 	ime imeShadow
 }
 
-// New creates an App that will open the given files (may be empty).
-func New(cfg config.Config, files []string) *App {
+// New creates an App configured by cfg and the command line's opts.
+func New(cfg config.Config, opts Options) *App {
 	return &App{
 		cfg:   cfg,
-		files: files,
+		opts:  opts,
 		state: uistate.New(),
 		ime:   newIMEShadow(),
 	}
+}
+
+// WindowOptions returns the Gio options describing the window this App
+// wants. It is exported (and takes no receiver state beyond opts) so tests
+// can assert the real, production option set without opening a window —
+// the same approach InputFilters takes for the input path.
+//
+// Size is still requested alongside Maximized on purpose: it is the size
+// the window returns to when the user un-maximizes it, and it's what
+// platforms that cannot honor a maximized request fall back to.
+func WindowOptions(opts Options) []gioapp.Option {
+	win := []gioapp.Option{gioapp.Size(unit.Dp(1000), unit.Dp(650))}
+	if opts.Maximized {
+		win = append(win, gioapp.Maximized.Option())
+	}
+	return win
 }
 
 // Run drives win's event loop until the window is closed. It blocks the
 // calling goroutine, matching Gio's own convention (see gioui.org/app doc).
 func (a *App) Run(win *gioapp.Window) error {
 	a.win = win
-	win.Option(
-		gioapp.Size(unit.Dp(1000), unit.Dp(650)),
-	)
+	win.Option(WindowOptions(a.opts)...)
 
 	a.fonts = render.Fonts{
 		Shaper: render.NewShaper(a.cfg.Editor),
@@ -322,7 +348,7 @@ func (a *App) syncSize(size image.Point) {
 // big the initial grid should be, and starts the goroutine that pumps its
 // redraw events into our state model.
 func (a *App) startNvim() {
-	proc, err := nvimproc.Spawn(a.cfg.Nvim.Command, a.cfg.Nvim.ExtraArgs, a.files, a.cols, a.rows)
+	proc, err := nvimproc.Spawn(a.cfg.Nvim.Command, a.cfg.Nvim.ExtraArgs, a.opts.NvimArgs, a.cols, a.rows)
 	if err != nil {
 		// Nothing meaningful to render without Nvim; surfacing to stderr
 		// is enough for the MVP (see IMPLEMENTATION_PLAN.md for a real

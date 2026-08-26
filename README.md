@@ -22,6 +22,8 @@ binary.
   Nvim's own input protocol.
 - Live window resizing.
 - A small, plain `config.toml` for font and Nvim-launch settings.
+- Launcher-friendly command line: `--maximized`, plus a `--` separator that
+  passes any Nvim arguments straight through.
 - Nerd font support.
 
 Simple and pure — no bloat, no bundled plugin marketplace, no telemetry.
@@ -82,6 +84,28 @@ extra_args = []            # extra args passed straight to nvim
 
 You don't need to create this file to get started — the defaults shown
 above are exactly what's used if it's absent.
+
+## Command line
+
+```sh
+simplenvim [flags] [file...] [-- nvim-args...]
+```
+
+| Flag | Description |
+|---|---|
+| `--maximized` | Start with the window maximized. |
+| `--nvim <path>` | Use a specific `nvim` executable. |
+| `--version` | Print the version and exit. |
+
+Anything after `--` goes to `nvim` untouched, which is what lets a desktop
+launcher or shell alias drive it:
+
+```sh
+simplenvim --maximized -- -c term -c edit ~/notes.todo
+```
+
+See [`doc/developer.md`](doc/developer.md#command-line-flags) for the full
+details, including how pass-through arguments are ordered.
 
 ## Documentation
 

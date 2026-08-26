@@ -4,13 +4,16 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	gioapp "gioui.org/app"
 
 	editorapp "github.com/kgfly/SimpleNvimEditor/internal/app"
+	"github.com/kgfly/SimpleNvimEditor/internal/cli"
 	"github.com/kgfly/SimpleNvimEditor/internal/config"
 )
 
@@ -18,15 +21,18 @@ import (
 var version = "dev"
 
 func main() {
-	showVersion := flag.Bool("version", false, "print version and exit")
-	nvimPath := flag.String("nvim", "", "path to the nvim executable (overrides config file)")
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s [flags] [file...]\n\n", os.Args[0])
-		flag.PrintDefaults()
+	opts, err := cli.Parse(filepath.Base(os.Args[0]), os.Args[1:], os.Stderr)
+	if err != nil {
+		// -h/--help is a successful request for usage, which Parse has
+		// already written; anything else is a real misuse and flag has
+		// already reported the specific problem.
+		if errors.Is(err, flag.ErrHelp) {
+			return
+		}
+		os.Exit(2)
 	}
-	flag.Parse()
 
-	if *showVersion {
+	if opts.ShowVersion {
 		fmt.Println(version)
 		return
 	}
@@ -36,12 +42,14 @@ func main() {
 		fmt.Fprintf(os.Stderr, "simplenvim: loading config: %v\n", err)
 		os.Exit(1)
 	}
-	if *nvimPath != "" {
-		cfg.Nvim.Command = *nvimPath
+	if opts.NvimPath != "" {
+		cfg.Nvim.Command = opts.NvimPath
 	}
 
-	files := flag.Args()
-	a := editorapp.New(cfg, files)
+	a := editorapp.New(cfg, editorapp.Options{
+		NvimArgs:  opts.NvimArgs,
+		Maximized: opts.Maximized,
+	})
 
 	go func() {
 		win := new(gioapp.Window)

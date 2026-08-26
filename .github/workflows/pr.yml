@@ -87,7 +87,7 @@ jobs:
       - name: Unit + integration tests with coverage
         shell: bash
         run: |
-          go test ./test/unit/... ./test/integration/... -race \
+          go test ./internal/app/ ./test/unit/... ./test/integration/... -race \
             -coverpkg=./internal/... -coverprofile=cover.out
 
       # e2e builds a real binary and drives it under Xvfb -- Linux-only by

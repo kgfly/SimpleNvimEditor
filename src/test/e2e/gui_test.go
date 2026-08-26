@@ -292,3 +292,57 @@ func hasChildNvim(t *testing.T, parentPID int) bool {
 	}
 	return false
 }
+
+// TestGUIAcceptsLauncherArgs runs the real binary with the exact command
+// line a desktop launcher uses:
+//
+//	simplenvim --maximized -- -c term -c edit <file>
+//
+// Before pass-through support, this exited immediately with a flag-parsing
+// error, so the strongest signal here is simply that a window appears at
+// all and renders content. It complements the integration tier, which
+// verifies what those arguments did *inside* nvim; this tier verifies the
+// binary's own argument handling end to end.
+func TestGUIAcceptsLauncherArgs(t *testing.T) {
+	requireE2ETools(t)
+
+	bin := buildSimplenvim(t)
+	display := startXvfb(t)
+
+	dir := t.TempDir()
+	todo := filepath.Join(dir, "n.todo")
+	if err := os.WriteFile(todo, []byte("launcher args e2e\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	cmd := exec.Command(bin, "--maximized", "--", "-c", "term", "-c", "edit", todo)
+	cmd.Env = append(os.Environ(), "DISPLAY="+display)
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start simplenvim: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+	})
+
+	// A flag-parsing failure exits before any window exists, so
+	// waitForWindow succeeding is itself the core assertion.
+	windowID := waitForWindow(t, display, 30*time.Second)
+
+	var img image.Image
+	for deadline := time.Now().Add(20 * time.Second); time.Now().Before(deadline); {
+		img = screenshotWindow(t, display, windowID)
+		if distinctColorCount(img) >= 5 {
+			break
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+	if n := distinctColorCount(img); n < 5 {
+		t.Fatalf("screenshot has only %d distinct sampled colors, want a real rendered UI; stderr:\n%s", n, stderr.String())
+	}
+	if s := stderr.String(); strings.Contains(s, "flag provided but not defined") {
+		t.Fatalf("binary rejected its own launcher arguments:\n%s", s)
+	}
+}

@@ -247,6 +247,9 @@ func TestLoadNegativeFontSize(t *testing.T) {
 }
 
 func TestLoadUnreadableFile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("chmod does not restrict reads on Windows")
+	}
 	withIsolatedConfigDir(t)
 
 	path, err := config.FilePath()
@@ -256,7 +259,6 @@ func TestLoadUnreadableFile(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
-	// Create the file then make it unreadable.
 	if err := os.WriteFile(path, []byte("[editor]\n"), 0o644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}

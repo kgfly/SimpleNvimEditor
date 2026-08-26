@@ -177,9 +177,43 @@ For shipping a `.dmg`, see [Releasing](#releasing-official-build);
 | Flag | Description |
 |---|---|
 | `-nvim /path/to/nvim` | Overrides the `nvim` executable to launch (default: whatever the config file says, or plain `nvim` resolved via `PATH`). |
+| `-maximized` | Starts with the window maximized. |
+| `-version` | Prints the version and exits. |
+
+Single-dash and double-dash spellings are equivalent (`-maximized` ==
+`--maximized`), as usual for Go's `flag` package.
 
 Any remaining positional arguments are treated as files to open, exactly
 like `nvim file1 file2`.
+
+#### Passing arguments through to Nvim
+
+Everything after a `--` separator is forwarded to `nvim` **verbatim**, so
+Nvim's own flags don't collide with SimpleNvimEditor's:
+
+```sh
+simplenvim --maximized -- -c term -c edit ~/notes.todo
+```
+
+Without the separator, `-c` would be parsed as one of *our* flags and
+rejected — that's the whole reason it exists.
+
+Two details worth knowing:
+
+- **Pass-through args are placed before positional files.** Several Nvim
+  flags are positional-hungry, so `simplenvim a.txt b.txt -- -O` becomes
+  `nvim -O a.txt b.txt` (two vertical splits), not `nvim a.txt b.txt -O`.
+- **Only the first `--` is consumed.** A second one is meaningful to Nvim
+  itself (it ends *its* option list), so it is forwarded unchanged.
+
+Because forwarding is verbatim, Nvim's own argument grammar applies
+unmodified. In the example above, `-c` takes exactly one argument, so
+`-c edit ~/notes.todo` is `-c edit` *plus* a positional file — the same
+thing plain `nvim` would do with that line.
+
+Parsing lives in `internal/cli`, which depends only on the standard
+library so the whole argument surface is unit-testable without opening a
+window (see `test/unit/cli_test.go`).
 
 For the `config.toml` file format (font/Nvim-launch settings, default
 values, and file locations per OS), see the
