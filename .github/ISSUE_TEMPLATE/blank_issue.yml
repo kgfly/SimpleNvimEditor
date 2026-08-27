@@ -1,0 +1,23 @@
+name: Blank Issue
+description: File an issue that doesn't fit other categories
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: Please kindly search the existing (open/closed) issues before creating a new one.
+
+  - type: checkboxes
+    id: duplicate-check
+    attributes:
+      label: Duplicate check
+      options:
+        - label: I have searched existing open and closed issues.
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe your issue.
+    validations:
+      required: true
