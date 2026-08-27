@@ -54,6 +54,11 @@ type App struct {
 	title      string
 	view       any
 
+	// metric is the pixel density the cached cell Metrics were measured
+	// at, so a move to a differently-scaled monitor can be detected; see
+	// syncMetrics.
+	metric unit.Metric
+
 	// ime mirrors just enough document state to keep the platform's
 	// input method (macOS Dictation, CJK IMEs, emoji picker) alive; see
 	// ime.go.
@@ -125,9 +130,7 @@ func (a *App) Run(win *gioapp.Window) error {
 // doesn't have to wait for a frame to be scheduled before it's processed.
 func (a *App) layout(gtx layout.Context) {
 	size := gtx.Constraints.Max
-	if a.fonts.Metrics.CellWidth == 0 {
-		a.fonts.Metrics = render.Measure(gtx, a.fonts.Shaper, a.fonts.Face, a.fonts.Size)
-	}
+	a.syncMetrics(gtx)
 
 	a.handleInput(gtx)
 	a.syncSize(size)
@@ -142,6 +145,33 @@ func (a *App) layout(gtx layout.Context) {
 	}
 
 	render.Frame(gtx, a.fonts, snap)
+}
+
+// syncMetrics (re-)measures the cell grid whenever the pixel density the
+// window is being rendered at changes.
+//
+// This is what keeps text sharp across monitors. Cell size is derived from
+// the shaped size of the font, and the shaper converts sp to pixels using
+// gtx.Metric.PxPerSp (widget.Label calls gtx.Sp). On macOS that factor is
+// the display's backingScaleFactor, which Gio re-reads on every draw, so
+// dragging the window from a 2x Retina panel to a 1x external monitor
+// silently halves the size of every glyph.
+//
+// Measuring only once therefore leaves the grid laid out for the monitor
+// the window was born on: glyphs are drawn at the new scale but positioned
+// on cells sized for the old one, so characters overlap or get clipped —
+// the distortion that survives a maximize/minimize, because neither of
+// those changes the density, only the size.
+//
+// Keying on Metric rather than re-measuring unconditionally keeps this off
+// the hot path: shaping a 20-glyph probe every frame would be pure waste in
+// the overwhelmingly common case where nothing moved.
+func (a *App) syncMetrics(gtx layout.Context) {
+	if a.fonts.Metrics.CellWidth != 0 && gtx.Metric == a.metric {
+		return
+	}
+	a.metric = gtx.Metric
+	a.fonts.Metrics = render.Measure(gtx, a.fonts.Shaper, a.fonts.Face, a.fonts.Size)
 }
 
 // InputFilters returns the event filters describing everything the editor
