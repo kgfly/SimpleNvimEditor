@@ -87,7 +87,10 @@ func Measure(gtx layout.Context, shaper *text.Shaper, face font.Font, size unit.
 	var ops op.Ops
 	mgtx.Ops = &ops
 	dims := widget.Label{MaxLines: 1}.Layout(mgtx, shaper, face, size, probe, op.CallOp{})
-	w := dims.Size.X / len(probe)
+	// Round to nearest rather than truncating: the advance is fractional,
+	// and always rounding down biases every cell narrower than the glyphs
+	// actually drawn into it.
+	w := (dims.Size.X + len(probe)/2) / len(probe)
 	if w < 1 {
 		w = 1
 	}
