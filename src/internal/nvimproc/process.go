@@ -53,17 +53,17 @@ type Process struct {
 	cmds chan func()
 }
 
-// Spawn starts `command --embed [extraArgs...] [files...]` as a child
+// Spawn starts `command --embed [extraArgs...] [nvimArgs...]` as a child
 // process and attaches a UI to it with the given initial grid size.
 //
 // command is resolved the same way on every OS: exec.Command performs a
 // PATH lookup, so "nvim" works on Linux, macOS, and Windows alike as long
 // as the binary is installed and on PATH (or an absolute path is given).
-func Spawn(command string, extraArgs, files []string, cols, rows int) (*Process, error) {
-	args := make([]string, 0, len(extraArgs)+len(files)+2)
+func Spawn(command string, extraArgs, nvimArgs []string, cols, rows int) (*Process, error) {
+	args := make([]string, 0, len(extraArgs)+len(nvimArgs)+2)
 	args = append(args, "--embed")
 	args = append(args, extraArgs...)
-	args = append(args, files...)
+	args = append(args, nvimArgs...)
 
 	v, err := nvim.NewChildProcess(
 		nvim.ChildProcessCommand(command),

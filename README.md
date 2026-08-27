@@ -83,6 +83,15 @@ extra_args = []            # extra args passed straight to nvim
 You don't need to create this file to get started — the defaults shown
 above are exactly what's used if it's absent.
 
+## Command-line arguments
+
+Use `--maximized` to start with a maximized window. Arguments after `--` are
+forwarded unchanged to Nvim, including commands and Nvim flags:
+
+```sh
+simplenvim --maximized -- -c term -c edit /Users/user1/todo.txt
+```
+
 ## Documentation
 
 - [`doc/developer.md`](doc/developer.md) — everything about building,

@@ -34,8 +34,9 @@ func Frame(gtx layout.Context, fonts Fonts, snap uistate.Snapshot) {
 	drawCursor(gtx, fonts, snap, defFg)
 }
 
-// drawGrid paints every row of gv, offset by origin pixels, as a sequence of
-// same-highlight cell "runs" (a background fill plus one text draw each).
+// drawGrid paints every row of gv, offset by origin pixels. Cells are
+// grouped into same-highlight runs for the background fill, but glyphs are
+// drawn one cell at a time so text stays locked to the grid.
 func drawGrid(gtx layout.Context, fonts Fonts, hv uistate.HighlightView, gv uistate.GridView, origin image.Point) {
 	cw, ch := fonts.Metrics.CellWidth, fonts.Metrics.CellHeight
 	for row, cells := range gv.Data {
@@ -44,9 +45,7 @@ func drawGrid(gtx layout.Context, fonts Fonts, hv uistate.HighlightView, gv uist
 		for col < len(cells) {
 			runStart := col
 			hlID := cells[col].HlID
-			var text []byte
 			for col < len(cells) && cells[col].HlID == hlID {
-				text = append(text, cells[col].Text...)
 				col++
 			}
 			runLen := col - runStart
@@ -56,7 +55,19 @@ func drawGrid(gtx layout.Context, fonts Fonts, hv uistate.HighlightView, gv uist
 			x := origin.X + runStart*cw
 			fg, bg := hv.Resolve(hlID)
 			paint.FillShape(gtx.Ops, bg, clip.Rect(image.Rect(x, y, x+runLen*cw, y+ch)).Op())
-			drawText(gtx, fonts, x, y, string(text), fg)
+
+			// Draw each cell at its own exact grid position instead of
+			// shaping the whole run as one string. A font's real advance is
+			// fractional and rarely equals the integer CellWidth the grid is
+			// laid out on, so a shaped run drifts further right with every
+			// glyph; over a long line that accumulates into whole columns of
+			// error, visibly clipping characters at run boundaries.
+			for i, cell := range cells[runStart:col] {
+				if cell.Text == "" || cell.Text == " " {
+					continue
+				}
+				drawText(gtx, fonts, x+i*cw, y, cell.Text, fg)
+			}
 		}
 	}
 }
