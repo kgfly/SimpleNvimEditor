@@ -10,6 +10,8 @@ import (
 	"runtime"
 
 	"github.com/BurntSushi/toml"
+
+	"github.com/kgfly/SimpleNvimEditor/internal/input"
 )
 
 // Config holds all GUI-level settings.
@@ -29,6 +31,14 @@ type EditorConfig struct {
 	// than the default "monospace", system font resolution is used
 	// instead of the bundled Go Mono typeface.
 	FontFamily string `toml:"font_family"`
+	// AltIsMeta sends Alt/Option chords to Nvim as <A-...> mappings.
+	//
+	// A pointer so that "absent" is distinguishable from "explicitly
+	// false": the default is true, which a plain bool could not express
+	// through TOML's zero value. See input.Policy for what it controls
+	// and why macOS is the only platform where turning it off is
+	// meaningful (it costs you Option-composed characters like "å").
+	AltIsMeta *bool `toml:"alt_is_meta"`
 }
 
 // NvimConfig controls how the backend Nvim process is located and launched.
@@ -90,6 +100,15 @@ func Load() (Config, error) {
 		cfg.Editor.UseSystemFonts = true
 	}
 	return cfg, nil
+}
+
+// InputPolicy returns the key-handling policy implied by the config.
+func (c EditorConfig) InputPolicy() input.Policy {
+	p := input.DefaultPolicy()
+	if c.AltIsMeta != nil {
+		p.AltIsMeta = *c.AltIsMeta
+	}
+	return p
 }
 
 // Dir returns the directory SimpleNvimEditor keeps its config file in,

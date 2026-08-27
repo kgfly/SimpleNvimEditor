@@ -299,3 +299,46 @@ font_family = "monospace"
 		t.Error("UseSystemFonts should not be set when font_family == default")
 	}
 }
+
+// TestAltIsMetaConfig covers the tri-state of alt_is_meta: absent means the
+// default (true), and an explicit value is honoured either way.
+//
+// The pointer field is what makes "absent" distinguishable from "false" —
+// with a plain bool, TOML's zero value would silently disable Alt-as-Meta
+// for every user who never set it, resurrecting the macOS Alt-Shift bug.
+func TestAltIsMetaConfig(t *testing.T) {
+	cases := []struct {
+		desc string
+		toml string
+		want bool
+	}{
+		{"absent defaults to meta", "[editor]\n", true},
+		{"explicitly enabled", "[editor]\nalt_is_meta = true\n", true},
+		{"explicitly disabled", "[editor]\nalt_is_meta = false\n", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			withIsolatedConfigDir(t)
+
+			path, err := config.FilePath()
+			if err != nil {
+				t.Fatalf("FilePath() error = %v", err)
+			}
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				t.Fatalf("MkdirAll: %v", err)
+			}
+			if err := os.WriteFile(path, []byte(tc.toml), 0o644); err != nil {
+				t.Fatalf("WriteFile: %v", err)
+			}
+
+			cfg, err := config.Load()
+			if err != nil {
+				t.Fatalf("Load() error = %v", err)
+			}
+			if got := cfg.Editor.InputPolicy().AltIsMeta; got != tc.want {
+				t.Errorf("AltIsMeta = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}

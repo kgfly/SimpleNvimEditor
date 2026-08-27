@@ -42,16 +42,6 @@ var specialNames = map[key.Name]string{
 	key.NameF12:            "F12",
 }
 
-// pureModifiers are key.Names that represent a modifier key by itself; a
-// press/release of just the modifier produces no editor input.
-var pureModifiers = map[key.Name]bool{
-	key.NameCtrl:    true,
-	key.NameShift:   true,
-	key.NameAlt:     true,
-	key.NameSuper:   true,
-	key.NameCommand: true,
-}
-
 // EncodeKey converts a Gio key.Event into Nvim key-notation ("a", "!",
 // "<C-a>", "<Esc>", ...), or "" if the event shouldn't be sent to Nvim at
 // all (key releases, bare modifier presses, or names we don't recognize).
@@ -59,7 +49,7 @@ func EncodeKey(e key.Event) string {
 	if e.State != key.Press {
 		return ""
 	}
-	if pureModifiers[e.Name] {
+	if IsModifierKey(e.Name) {
 		return ""
 	}
 
@@ -77,6 +67,13 @@ func EncodeKey(e key.Event) string {
 		return ""
 	}
 
+	// Gio reports letters as uppercase regardless of Shift, so undo that
+	// when Shift was not held. When it was held, the uppercase glyph is
+	// exactly how Nvim spells the shifted key: "A", and "<A-A>" for a
+	// chord — verified equal to "<A-S-a>" via keytrans(). An explicit
+	// "S-" prefix is deliberately avoided: "<C-S-a>" is a *different* key
+	// from "<C-A>" in Nvim (it needs modifyOtherKeys), so emitting it
+	// would stop ordinary "<C-a>" mappings from firing under Caps/Shift.
 	text := string(r)
 	if r >= 'A' && r <= 'Z' && !e.Modifiers.Contain(key.ModShift) {
 		text = strings.ToLower(text)
