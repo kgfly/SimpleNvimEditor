@@ -50,7 +50,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
-Name: "addtopath"; Description: "Add SimpleNvimEditor to the &PATH"; GroupDescription: "System integration:"; Flags: checked
+Name: "addtopath"; Description: "Add SimpleNvimEditor to the &PATH"; GroupDescription: "System integration:"
 
 [Files]
 Source: "..\..\stage\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
