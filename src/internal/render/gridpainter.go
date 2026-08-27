@@ -19,8 +19,12 @@ func Frame(gtx layout.Context, fonts Fonts, snap uistate.Snapshot) {
 	size := gtx.Constraints.Max
 	paint.FillShape(gtx.Ops, defBg, clip.Rect(image.Rect(0, 0, size.X, size.Y)).Op())
 
+	// One cache per frame, shared by every grid: splits and floats draw
+	// the same characters as the base grid, so they hit the same entries.
+	glyphs := newGlyphCache(gtx, fonts)
+
 	if base, ok := snap.Grids[1]; ok {
-		drawGrid(gtx, fonts, snap.Highlight, base, image.Pt(0, 0))
+		drawGrid(gtx, fonts, glyphs, snap.Highlight, base, image.Pt(0, 0))
 	}
 	for _, p := range snap.Windows {
 		gv, ok := snap.Grids[p.GridID]
@@ -28,7 +32,7 @@ func Frame(gtx layout.Context, fonts Fonts, snap uistate.Snapshot) {
 			continue
 		}
 		origin := image.Pt(p.Col*fonts.Metrics.CellWidth, p.Row*fonts.Metrics.CellHeight)
-		drawGrid(gtx, fonts, snap.Highlight, gv, origin)
+		drawGrid(gtx, fonts, glyphs, snap.Highlight, gv, origin)
 	}
 
 	drawCursor(gtx, fonts, snap, defFg)
@@ -37,7 +41,7 @@ func Frame(gtx layout.Context, fonts Fonts, snap uistate.Snapshot) {
 // drawGrid paints every row of gv, offset by origin pixels. Cells are
 // grouped into same-highlight runs for the background fill, but glyphs are
 // drawn one cell at a time so text stays locked to the grid.
-func drawGrid(gtx layout.Context, fonts Fonts, hv uistate.HighlightView, gv uistate.GridView, origin image.Point) {
+func drawGrid(gtx layout.Context, fonts Fonts, glyphs *glyphCache, hv uistate.HighlightView, gv uistate.GridView, origin image.Point) {
 	cw, ch := fonts.Metrics.CellWidth, fonts.Metrics.CellHeight
 	for row, cells := range gv.Data {
 		y := origin.Y + row*ch
@@ -66,22 +70,21 @@ func drawGrid(gtx layout.Context, fonts Fonts, hv uistate.HighlightView, gv uist
 				if cell.Text == "" || cell.Text == " " {
 					continue
 				}
-				drawText(gtx, fonts, x+i*cw, y, cell.Text, fg)
+				drawText(gtx, glyphs, x+i*cw, y, cell.Text, fg)
 			}
 		}
 	}
 }
 
-// drawText paints one cell-run's text at the given top-left pixel position.
-func drawText(gtx layout.Context, fonts Fonts, x, y int, text string, fg color.NRGBA) {
+// drawText paints one cell's text at the given top-left pixel position,
+// reusing the frame's shaped recording of that glyph.
+func drawText(gtx layout.Context, glyphs *glyphCache, x, y int, text string, fg color.NRGBA) {
 	if text == "" {
 		return
 	}
+	call := glyphs.get(gtx, text, fg)
 	off := op.Offset(image.Pt(x, y)).Push(gtx.Ops)
-	m := op.Record(gtx.Ops)
-	paint.ColorOp{Color: fg}.Add(gtx.Ops)
-	material := m.Stop()
-	labelWidget(gtx, fonts, text, material)
+	call.Add(gtx.Ops)
 	off.Pop()
 }
 
