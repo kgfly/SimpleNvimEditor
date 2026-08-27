@@ -33,6 +33,7 @@ Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
 SetupIconFile=..\..\src\cmd\simplenvim\icon.ico
+ChangesEnvironment=yes
 ; Per-user install by default so no UAC prompt is needed.
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
@@ -49,7 +50,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
-Name: "addtopath"; Description: "Add SimpleNvimEditor to the &PATH"; GroupDescription: "System integration:"
+Name: "addtopath"; Description: "Add SimpleNvimEditor to the &PATH"; GroupDescription: "System integration:"; Flags: checked
 
 [Files]
 Source: "..\..\stage\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
