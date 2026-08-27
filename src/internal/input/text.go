@@ -12,7 +12,8 @@ import (
 // spelled with a single printable glyph ("←", "⏎", "⌫", "⎋", ...), so they
 // cannot be distinguished from a typed character by inspecting the rune —
 // they have to be enumerated. Mirrors the key.Name* constants in
-// gioui.org/io/key. NameSpace is deliberately absent; see IsTextKey.
+// gioui.org/io/key. The bare modifier names live in modifierBits instead of
+// being repeated here; NameSpace is deliberately absent, see IsTextKey.
 var namedKeys = map[key.Name]bool{
 	key.NameLeftArrow:      true,
 	key.NameRightArrow:     true,
@@ -29,11 +30,6 @@ var namedKeys = map[key.Name]bool{
 	key.NamePageDown:       true,
 	key.NameTab:            true,
 	key.NameBack:           true,
-	key.NameCtrl:           true,
-	key.NameShift:          true,
-	key.NameAlt:            true,
-	key.NameSuper:          true,
-	key.NameCommand:        true,
 	key.NameF1:             true,
 	key.NameF2:             true,
 	key.NameF3:             true,
@@ -48,48 +44,17 @@ var namedKeys = map[key.Name]bool{
 	key.NameF12:            true,
 }
 
-// IsTextKey reports whether a key.Event describes a keystroke that the
-// platform ALSO delivers as a key.EditEvent, and which must therefore be
-// ignored by the key path to avoid inserting the character twice.
-//
-// Both macOS and X11 route printable characters through the text-input
-// layer (NSTextInputClient's insertText: / xkb's compose machinery) in
-// addition to reporting the raw key, because that layer is what implements
-// dead keys, IMEs and dictation. Observed on macOS 26 with Gio v0.10.2:
-//
-//	'a'       -> EditEvent("a") + key.Event("A")
-//	Shift+'a' -> EditEvent("A") + key.Event("A", Shift)
-//	Space     -> EditEvent(" ") + key.Event(Space)
-//	Option+x  -> EditEvent("≈") + key.Event("≈", Alt)
-//	Esc/CR/BS/Tab/arrows -> key.Event only
-//	Ctrl+w, Cmd+v        -> key.Event only
-//
-// The rule: a single printable rune that EncodeKey does not already
-// recognise by name, with no Ctrl/Command/Super held. Ctrl and Command
-// suppress text generation (they produce commands like "<C-w>"), whereas
-// Shift and Alt merely select a different glyph and so still count as text.
-//
-// This cannot be derived from EncodeKey's output: it also brackets "<lt>",
-// "<Bslash>", "<Space>" and "<A-≈>", every one of which is real text.
+// IsTextKey reports whether a keystroke is one the platform also delivers
+// as a key.EditEvent, using the default policy. See Policy.IsTextKey.
 func IsTextKey(e key.Event) bool {
-	if e.State != key.Press {
-		return false
-	}
-	if e.Modifiers.Contain(key.ModCtrl) ||
-		e.Modifiers.Contain(key.ModCommand) ||
-		e.Modifiers.Contain(key.ModSuper) {
-		return false
-	}
-	//is a named key but is genuinely text: it arrives as
-	// EditEvent(" ") too, so the text path must own it.
-	if e.Name == key.NameSpace {
-		return true
-	}
-	if namedKeys[e.Name] {
-		return false
-	}
-	r, size := utf8.DecodeRuneInString(string(e.Name))
-	if size == 0 || size != len(e.Name) {
+	return DefaultPolicy().IsTextKey(e)
+}
+
+// isSingleRune reports whether n consists of exactly one printable rune,
+// which is what distinguishes a typed character from a named key.
+func isSingleRune(n key.Name) bool {
+	r, size := utf8.DecodeRuneInString(string(n))
+	if size == 0 || size != len(n) {
 		return false
 	}
 	return unicode.IsPrint(r)

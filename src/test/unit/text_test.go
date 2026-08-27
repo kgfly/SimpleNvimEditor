@@ -63,14 +63,38 @@ func TestIsTextKeyPrintableRune(t *testing.T) {
 	}
 }
 
-func TestIsTextKeyShiftAndAltAllowed(t *testing.T) {
+func TestIsTextKeyShiftIsText(t *testing.T) {
 	e := key.Event{Name: "A", State: key.Press, Modifiers: key.ModShift}
 	if !input.IsTextKey(e) {
 		t.Fatal("Shift+letter should be a text key")
 	}
-	e = key.Event{Name: "≈", State: key.Press, Modifiers: key.ModAlt}
-	if !input.IsTextKey(e) {
-		t.Fatal("Alt+rune should be a text key")
+}
+
+// TestIsTextKeyAltFollowsPolicy pins down the macOS Alt-Shift bug. By
+// default Alt is Meta, so an Alt-chord must NOT be claimed by the text
+// path — otherwise the key path skips it and the <A-...> mapping never
+// fires (macOS), or the keystroke vanishes entirely because no EditEvent
+// is ever sent (Windows, X11, Wayland).
+func TestIsTextKeyAltFollowsPolicy(t *testing.T) {
+	alt := key.Event{Name: "≈", State: key.Press, Modifiers: key.ModAlt}
+	altShift := key.Event{Name: "A", State: key.Press, Modifiers: key.ModAlt | key.ModShift}
+
+	meta := input.Policy{AltIsMeta: true}
+	for _, e := range []key.Event{alt, altShift} {
+		if meta.IsTextKey(e) {
+			t.Errorf("AltIsMeta: %+v must reach the key path, not the text path", e)
+		}
+	}
+
+	compose := input.Policy{AltIsMeta: false}
+	for _, e := range []key.Event{alt, altShift} {
+		if !compose.IsTextKey(e) {
+			t.Errorf("AltIsMeta=false: %+v should compose text", e)
+		}
+	}
+
+	if !input.DefaultPolicy().AltIsMeta {
+		t.Error("Alt should be Meta by default")
 	}
 }
 

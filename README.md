@@ -74,6 +74,7 @@ if it's missing, or if any field is left out:
 [editor]
 font_size = 14
 font_family = "monospace"  # set to your preferred font, e.g. "Hack Nerd Font Mono"
+alt_is_meta = true         # send Alt/Option chords to Nvim as <A-...>
 
 [nvim]
 command = "nvim"           # path or PATH-resolved name
@@ -82,6 +83,16 @@ extra_args = []            # extra args passed straight to nvim
 
 You don't need to create this file to get started — the defaults shown
 above are exactly what's used if it's absent.
+
+### `alt_is_meta`
+
+Only meaningful on macOS, where Option is a composing key: Option-a types
+`å` and Option-Shift-a types `Å`. Keeping the default `true` means those
+chords go to Nvim so `<A-a>` and `<A-A>` mappings fire. Set it to `false`
+if you would rather type composed characters than use Option as Meta.
+
+On Linux and Windows, Alt is already a pure command modifier and never
+produces text, so this setting has no effect there.
 
 ## Command-line arguments
 

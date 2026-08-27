@@ -58,6 +58,14 @@ type App struct {
 	// input method (macOS Dictation, CJK IMEs, emoji picker) alive; see
 	// ime.go.
 	ime imeShadow
+
+	// mods reconstructs the held modifier set from key events, because
+	// Gio's Windows backend reports it incorrectly; see
+	// input.ModifierTracker.
+	mods input.ModifierTracker
+
+	// policy decides what Alt means; see input.Policy.
+	policy input.Policy
 }
 
 // Options controls how the editor window starts.
@@ -73,6 +81,7 @@ func New(cfg config.Config, nvimArgs []string, options Options) *App {
 		options:  options,
 		state:    uistate.New(),
 		ime:      newIMEShadow(),
+		policy:   cfg.Editor.InputPolicy(),
 	}
 }
 
@@ -186,6 +195,11 @@ func (a *App) handleInput(gtx layout.Context) {
 			// A focus change ends any composition the old handler
 			// owned, so start the next one from a clean slate.
 			a.ime.reset()
+			// Modifier releases go to whoever has focus, so the tail
+			// of an Alt-Tab never reaches us. Forget what we thought
+			// was held rather than treat the next plain keypress as a
+			// chord.
+			a.mods.Reset()
 		case key.Event:
 			a.onKey(ev)
 		case key.EditEvent:
@@ -234,6 +248,9 @@ func (a *App) caret() key.Caret {
 }
 
 func (a *App) onKey(e key.Event) {
+	// Track modifiers even before Nvim exists, so the held set can never
+	// drift out of sync with the keyboard.
+	e = a.mods.Key(e)
 	if a.proc == nil {
 		return
 	}
@@ -242,7 +259,7 @@ func (a *App) onKey(e key.Event) {
 	// IMEs deliver text) and once as this key.Event. X11 does the same.
 	// Sending both would type every character twice, so text is handled
 	// exclusively in onEdit and only non-text keys are encoded here.
-	if input.IsTextKey(e) {
+	if a.policy.IsTextKey(e) {
 		return
 	}
 	if s := input.EncodeKey(e); s != "" {
@@ -271,11 +288,32 @@ func (a *App) onEdit(e key.EditEvent) {
 		return
 	}
 
+	// macOS composes Option-chords into text before it reports the key:
+	// gio_onKeys calls interpretKeyEvents (which fires this EditEvent)
+	// and only then emits the key.Event. So when Alt is Meta, Option-a
+	// would insert "å" here AND fire <A-a> from onKey — the very
+	// double-input that IsTextKey exists to prevent, just in the other
+	// direction. The key path owns these chords, so drop the text.
+	if a.altOwnsKeyPath() {
+		return
+	}
+
 	stale := a.ime.replace(e.Range, e.Text)
 
 	if keys := input.Backspaces(stale) + input.EncodeText(e.Text); keys != "" {
 		a.proc.Input(keys)
 	}
+}
+
+// altOwnsKeyPath reports whether an Alt-chord is currently being handled as
+// a Meta keystroke, in which case any text the platform composed from it is
+// a duplicate and must be discarded.
+//
+// A composition in flight is exempt: a CJK IME may legitimately hold Alt
+// while committing, and the text it delivers is a real commit rather than
+// an Option-glyph.
+func (a *App) altOwnsKeyPath() bool {
+	return a.policy.MetaHeld(a.mods.Held()) && !a.ime.composing()
 }
 
 func (a *App) onPointer(e pointer.Event) {
@@ -284,7 +322,7 @@ func (a *App) onPointer(e pointer.Event) {
 	}
 	col := int(e.Position.X) / a.fonts.Metrics.CellWidth
 	row := int(e.Position.Y) / a.fonts.Metrics.CellHeight
-	mods := input.ModifierPrefix(e.Modifiers)
+	mods := input.ModifierPrefix(a.mods.Modifiers(e.Modifiers))
 
 	if e.Kind == pointer.Scroll {
 		if action, ok := input.ScrollDirection(e); ok {
