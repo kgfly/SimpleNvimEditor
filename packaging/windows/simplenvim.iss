@@ -28,7 +28,9 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 LicenseFile=..\..\LICENSE
 OutputDir=Output
-OutputBaseFilename=simplenvim_{#MyAppVersion}_windows_{#MyAppArch}
+; The "-setup" suffix marks this as the installer, distinct from the plain
+; simplenvim.exe binary shipped inside the .zip archive.
+OutputBaseFilename=simplenvim_{#MyAppVersion}_windows_{#MyAppArch}-setup
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
