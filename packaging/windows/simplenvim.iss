@@ -62,7 +62,9 @@ Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icon.ico"; Tasks: desktopicon
 
 [Registry]
-Root: HKA; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; \
+; Always modify the per-user PATH, even for an admin install, to avoid
+; HKLM\Environment errors on machines with restrictive policies.
+Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; \
   ValueData: "{olddata};{app}"; Check: NeedsAddPath(ExpandConstant('{app}')); Tasks: addtopath
 
 [Run]
@@ -75,21 +77,10 @@ function NeedsAddPath(Param: string): Boolean;
 var
   OrigPath: string;
 begin
-  if IsAdminInstallMode then
+  if not RegQueryStringValue(HKEY_CURRENT_USER, 'Environment', 'Path', OrigPath) then
   begin
-    if not RegQueryStringValue(HKEY_LOCAL_MACHINE, 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment', 'Path', OrigPath) then
-    begin
-      Result := True;
-      exit;
-    end;
-  end
-  else
-  begin
-    if not RegQueryStringValue(HKEY_CURRENT_USER, 'Environment', 'Path', OrigPath) then
-    begin
-      Result := True;
-      exit;
-    end;
+    Result := True;
+    exit;
   end;
   Result := Pos(';' + Uppercase(Param) + ';', ';' + Uppercase(OrigPath) + ';') = 0;
 end;

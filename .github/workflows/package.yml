@@ -58,6 +58,7 @@ jobs:
           set -euo pipefail
           # Debian/RPM versions must start with a digit. Nightly tags like
           # "nightly-20260824" need a numeric prefix.
+          FILE_VERSION="$VERSION"
           PKG_VERSION="$VERSION"
           if ! [[ "$PKG_VERSION" =~ ^[0-9] ]]; then
             PKG_VERSION="0.0.0~${PKG_VERSION}"
@@ -66,10 +67,11 @@ jobs:
           mkdir -p dist
           nfpm package -f packaging/nfpm.yaml -p deb -t dist/
           nfpm package -f packaging/nfpm.yaml -p rpm -t dist/
-          # Rename to simplenvim_<version>_linux_<goarch>.{deb,rpm}.
+          # Use the original version string for filenames so they are
+          # consistent with the other platform packages.
           cd dist
-          for f in *.deb; do mv "$f" "simplenvim_${VERSION}_linux_${ARCH}.deb"; done
-          for f in *.rpm; do mv "$f" "simplenvim_${VERSION}_linux_${ARCH}.rpm"; done
+          for f in *.deb; do mv "$f" "simplenvim_${FILE_VERSION}_linux_${ARCH}.deb"; done
+          for f in *.rpm; do mv "$f" "simplenvim_${FILE_VERSION}_linux_${ARCH}.rpm"; done
           ls -l
 
       - uses: actions/upload-artifact@v4
