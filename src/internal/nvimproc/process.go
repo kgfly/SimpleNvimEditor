@@ -6,6 +6,7 @@ package nvimproc
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/neovim/go-client/nvim"
 )
@@ -51,6 +52,17 @@ type Process struct {
 	// produced them, while still keeping the caller (e.g. the input
 	// handler) non-blocking.
 	cmds chan func()
+
+	// resizeMu guards the coalescing state below. A window drag produces
+	// far more resizes than Nvim can usefully apply; see Resize.
+	resizeMu     sync.Mutex
+	pendingCols  int
+	pendingRows  int
+	resizeQueued bool
+
+	// resizeFn, when non-nil, replaces the TryResizeUI round trip. Only
+	// tests set it; see applyResize.
+	resizeFn func(cols, rows int)
 }
 
 // Spawn starts `command --embed [extraArgs...] [nvimArgs...]` as a child
@@ -136,8 +148,43 @@ func (p *Process) InputMouse(button, action, modifier string, grid, row, col int
 }
 
 // Resize asks Nvim to change the size of the base grid.
+//
+// Dragging a window edge produces a new size every frame -- roughly fifty
+// of them for one gesture -- and each TryResizeUI is a blocking round trip
+// that also makes Nvim reflow and redraw the whole screen. Sending all of
+// them queues hundreds of milliseconds of work whose results are obsolete
+// on arrival, so the grid visibly lags the window edge and keeps repainting
+// after the mouse stops.
+//
+// Only the latest size matters, so a pending resize that has not started
+// yet is replaced rather than queued behind. The size is read at execution
+// time (not captured), which is what lets a later call overwrite it.
 func (p *Process) Resize(cols, rows int) {
-	p.cmds <- func() { _ = p.Nvim.TryResizeUI(cols, rows) }
+	p.resizeMu.Lock()
+	defer p.resizeMu.Unlock()
+
+	p.pendingCols, p.pendingRows = cols, rows
+	if p.resizeQueued {
+		return
+	}
+	p.resizeQueued = true
+	p.cmds <- func() {
+		p.resizeMu.Lock()
+		cols, rows := p.pendingCols, p.pendingRows
+		p.resizeQueued = false
+		p.resizeMu.Unlock()
+		p.applyResize(cols, rows)
+	}
+}
+
+// applyResize performs the actual resize round trip. It is a field-backed
+// indirection purely so tests can observe coalescing without a live Nvim.
+func (p *Process) applyResize(cols, rows int) {
+	if p.resizeFn != nil {
+		p.resizeFn(cols, rows)
+		return
+	}
+	_ = p.Nvim.TryResizeUI(cols, rows)
 }
 
 // RequestQuit asks Nvim to quit, honoring unsaved-changes prompts. Because
