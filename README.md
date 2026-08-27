@@ -37,6 +37,37 @@ Nightly pre-releases are built from `main`.
 Neovim 0.9+ must be installed and on your `PATH` — this is a GUI *for*
 Neovim, not a copy of it.
 
+### Linux: `.deb` / `.rpm`
+
+Install the downloaded package with an explicit path (the leading `./`
+matters — without it, apt looks for a *package named* `simplenvim_...`):
+
+```sh
+sudo apt install ./simplenvim_<version>_linux_amd64.deb   # Debian/Ubuntu
+sudo dnf install ./simplenvim_<version>_linux_amd64.rpm   # Fedora/RHEL
+```
+
+If apt prints:
+
+```
+Notice: Download is performed unsandboxed as root as file '...' couldn't be
+accessed by user '_apt'. - pkgAcquire::Run (13: Permission denied)
+```
+
+nothing is wrong with the package. Apt drops privileges to the unprivileged
+`_apt` user to copy the file, and that user can't traverse a private home
+directory such as a `0700` `~/Downloads`. Apt falls back to running as root
+and the install still succeeds — it is a notice, not an error.
+
+To silence it, install from a world-traversable directory instead:
+
+```sh
+cp simplenvim_<version>_linux_amd64.deb /tmp/
+sudo apt install /tmp/simplenvim_<version>_linux_amd64.deb
+```
+
+Prefer this over loosening the permissions on your home directory.
+
 ### First launch: unsigned builds
 
 Releases are **not code-signed or notarized** (that needs a paid Apple
