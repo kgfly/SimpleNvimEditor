@@ -34,6 +34,7 @@ SolidCompression=yes
 WizardStyle=modern
 SetupIconFile=..\..\src\cmd\simplenvim\icon.ico
 ; Per-user install by default so no UAC prompt is needed.
+PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 #if MyAppArch == "arm64"
 ArchitecturesAllowed=arm64
@@ -74,10 +75,21 @@ function NeedsAddPath(Param: string): Boolean;
 var
   OrigPath: string;
 begin
-  if not RegQueryStringValue(HKEY_CURRENT_USER, 'Environment', 'Path', OrigPath) then
+  if IsAdminInstallMode then
   begin
-    Result := True;
-    exit;
+    if not RegQueryStringValue(HKEY_LOCAL_MACHINE, 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment', 'Path', OrigPath) then
+    begin
+      Result := True;
+      exit;
+    end;
+  end
+  else
+  begin
+    if not RegQueryStringValue(HKEY_CURRENT_USER, 'Environment', 'Path', OrigPath) then
+    begin
+      Result := True;
+      exit;
+    end;
   end;
   Result := Pos(';' + Uppercase(Param) + ';', ';' + Uppercase(OrigPath) + ';') = 0;
 end;
