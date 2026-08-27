@@ -30,10 +30,16 @@ type Process struct {
 	// Redraw receives every `redraw` notification as it arrives: each
 	// item is a full batch of [event-name, args...] tuples, exactly as
 	// Nvim grouped them (a batch always ends with a "flush" tuple once
-	// the screen is consistent again). It is buffered so a burst of
-	// events doesn't stall the msgpack-rpc read loop; callers should
-	// drain it promptly.
+	// the screen is consistent again).
+	//
+	// Every batch is delivered; none are ever dropped, however far behind
+	// the consumer falls. Batches are incremental and Nvim never resends
+	// them, so discarding one corrupts the display permanently. Backlog
+	// is absorbed by an unbounded queue instead (see redrawQueue).
 	Redraw chan [][]interface{}
+
+	// queue buffers batches between the RPC read loop and Redraw.
+	queue *redrawQueue
 
 	// Exited is closed when the Serve loop returns, i.e. when the Nvim
 	// process (or its stdio pipes) has gone away.
@@ -88,7 +94,8 @@ func Spawn(command string, extraArgs, nvimArgs []string, cols, rows int) (*Proce
 
 	p := &Process{
 		Nvim:   v,
-		Redraw: make(chan [][]interface{}, 256),
+		Redraw: make(chan [][]interface{}),
+		queue:  newRedrawQueue(),
 		Exited: make(chan struct{}),
 		cmds:   make(chan func(), 1024),
 	}
@@ -97,6 +104,10 @@ func Spawn(command string, extraArgs, nvimArgs []string, cols, rows int) (*Proce
 
 	go func() {
 		p.ServeErr = v.Serve()
+		// Closing the queue lets forwardRedraw drain what is left and
+		// then return, which closes Redraw and ends the consumer's range
+		// loop. Without this both goroutines would block forever.
+		p.queue.close()
 		close(p.Exited)
 	}()
 
@@ -111,18 +122,26 @@ func Spawn(command string, extraArgs, nvimArgs []string, cols, rows int) (*Proce
 // one whole batch of event tuples; see the Redraw field doc.
 func (p *Process) registerHandlers() {
 	_ = p.Nvim.RegisterHandler("redraw", func(updates ...[]interface{}) {
-		select {
-		case p.Redraw <- updates:
-		default:
-			// The consumer is falling behind; drop the oldest batch rather
-			// than blocking the RPC read loop indefinitely.
-			select {
-			case <-p.Redraw:
-			default:
-			}
-			p.Redraw <- updates
-		}
+		// Queue rather than send directly: the queue grows instead of
+		// blocking the RPC read loop, and unlike a fixed channel it can
+		// never discard a batch. See redrawQueue for why dropping one is
+		// unrecoverable.
+		p.queue.push(updates)
 	})
+	go p.forwardRedraw()
+}
+
+// forwardRedraw moves queued batches onto the Redraw channel, which keeps
+// the public API a plain channel that callers can range over.
+func (p *Process) forwardRedraw() {
+	defer close(p.Redraw)
+	for {
+		batch, ok := p.queue.pop()
+		if !ok {
+			return
+		}
+		p.Redraw <- batch
+	}
 }
 
 // runCmds executes queued outgoing calls one at a time, in submission

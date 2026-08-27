@@ -23,16 +23,34 @@ func newGrid(id int) *Grid {
 	return &Grid{ID: id}
 }
 
-// resize allocates a new backing array of the given size. Per `grid_resize`
-// semantics, existing content is discarded (Nvim will send fresh grid_line
-// events to repopulate anything still visible).
+// resize changes the grid's dimensions, preserving the content that still
+// fits inside the new bounds.
+//
+// Preserving is required, not an optimization. `grid_resize` is defined as
+// "resize a grid" and nothing more -- it is not a clear. Nvim tracks what
+// each cell already holds and only sends `grid_line` for rows it considers
+// changed, so any content the client discards here is never re-sent and the
+// affected rows stay blank indefinitely.
+//
+// Discarding everything is what made a maximized window come up empty: the
+// grid grew from 142x43 to 274x67 and Nvim followed with only ~11
+// `grid_line` events, enough to repaint the newly exposed area but nowhere
+// near the 18k cells that had just been thrown away. The surviving tabline
+// and statusline (which Nvim does redraw) on an otherwise black screen were
+// the giveaway, as was text partially reappearing after a click, because
+// scrolling forces Nvim to resend those rows.
 func (g *Grid) resize(rows, cols int) {
+	old := g.rows
 	g.Rows, g.Cols = rows, cols
 	g.rows = make([][]Cell, rows)
 	for r := range g.rows {
 		g.rows[r] = make([]Cell, cols)
 		for c := range g.rows[r] {
 			g.rows[r][c] = Cell{Text: " "}
+		}
+		// Copy the overlapping portion of the corresponding old row.
+		if r < len(old) {
+			copy(g.rows[r], old[r])
 		}
 	}
 }
