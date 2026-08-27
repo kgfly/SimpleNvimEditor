@@ -85,11 +85,11 @@ func TestApplySetTitle(t *testing.T) {
 	}
 }
 
-func TestApplySetTitleStripsPrefix(t *testing.T) {
+func TestApplySetTitlePreservesPrefix(t *testing.T) {
 	s := uistate.New()
-	s.Apply(batch(ev("set_title", args("Dir:sub file.go"))))
-	if got := s.Snapshot().Title; got != "file.go" {
-		t.Fatalf("Title = %q, want %q", got, "file.go")
+	s.Apply(batch(ev("set_title", args("term: ~/mydir"))))
+	if got := s.Snapshot().Title; got != "term: ~/mydir" {
+		t.Fatalf("Title = %q, want %q", got, "term: ~/mydir")
 	}
 }
 

@@ -6,7 +6,6 @@
 package uistate
 
 import (
-	"strings"
 	"sync"
 )
 
@@ -165,13 +164,6 @@ func (s *State) applySetTitle(args []interface{}) {
 		return
 	}
 	if t, ok := row[0].(string); ok {
-		// Strip "Dir:sub " prefixes produced by some titlestring
-		// configs (the colon+path pattern before the buffer name).
-		if ci := strings.Index(t, ":"); ci >= 0 {
-			if si := strings.Index(t[ci:], " "); si >= 0 {
-				t = strings.TrimSpace(t[ci+si:])
-			}
-		}
 		s.title = t
 	}
 }

@@ -307,12 +307,12 @@ func TestApplyBusyStartStopToggle(t *testing.T) {
 	}
 }
 
-func TestApplySetTitleColonStrip(t *testing.T) {
+func TestApplySetTitleColonPreserved(t *testing.T) {
 	s := uistate.New()
 	s.Apply(batch(ev("set_title", args("Dir:sub myfile.go"))))
 	got := s.Snapshot().Title
-	if got != "myfile.go" {
-		t.Fatalf("title = %q, want %q", got, "myfile.go")
+	if got != "Dir:sub myfile.go" {
+		t.Fatalf("title = %q, want %q", got, "Dir:sub myfile.go")
 	}
 }
 
