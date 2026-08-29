@@ -14,6 +14,7 @@ import (
 	"gioui.org/io/event"
 	"gioui.org/io/key"
 	"gioui.org/io/pointer"
+	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -454,6 +455,10 @@ func (a *App) pumpRedraw() {
 			a.win.Invalidate()
 		}
 	}
+	// Nvim exited (e.g. :q, :qa, :wq) — close the Gio window so the
+	// event loop in Run returns. Without this, the window stays open
+	// and unresponsive after Nvim is gone.
+	a.win.Perform(system.ActionClose)
 }
 
 // quit asks Nvim to exit (honoring unsaved-changes prompts) and waits a
