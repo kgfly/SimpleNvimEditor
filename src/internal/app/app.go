@@ -71,6 +71,14 @@ type App struct {
 
 	// policy decides what Alt means; see input.Policy.
 	policy input.Policy
+
+	// mouseBtn remembers which button name ("left", "right", "middle")
+	// was last pressed, so the corresponding Release event can reference
+	// the same button. Gio clears the button from e.Buttons before
+	// delivering the Release event, which makes MouseButtonFor return ""
+	// and silently drops every release — leaving Nvim stuck in
+	// mouse-held state.
+	mouseBtn string
 }
 
 // Options controls how the editor window starts.
@@ -354,19 +362,44 @@ func (a *App) onPointer(e pointer.Event) {
 	row := int(e.Position.Y) / a.fonts.Metrics.CellHeight
 	mods := input.ModifierPrefix(a.mods.Modifiers(e.Modifiers))
 
+	// With ext_multigrid, editor content lives on grids 2+ placed via
+	// win_pos, not on grid 1 (which is just chrome). Hit-test against
+	// the window placements to find the correct grid and translate to
+	// grid-relative coordinates so Nvim routes the event properly.
+	snap := a.state.Snapshot()
+	grid, gridRow, gridCol := 1, row, col
+	if g, gr, gc, ok := uistate.HitTest(snap.Windows, row, col); ok {
+		grid, gridRow, gridCol = g, gr, gc
+	}
+
 	if e.Kind == pointer.Scroll {
 		if action, ok := input.ScrollDirection(e); ok {
-			a.proc.InputMouse("wheel", action, mods, 1, row, col)
+			a.proc.InputMouse("wheel", action, mods, grid, gridRow, gridCol)
 		}
 		return
 	}
 
 	button := input.MouseButtonFor(e)
 	action := input.MouseAction(e.Kind)
+
+	// Gio clears the released button from e.Buttons before delivering
+	// the Release event, so MouseButtonFor returns "" and the release
+	// would be silently dropped. Without a release Nvim thinks the
+	// button is still held, corrupting its mouse state.
+	if e.Kind == pointer.Press {
+		a.mouseBtn = button
+	}
+	if button == "" && e.Kind == pointer.Release {
+		button = a.mouseBtn
+	}
+	if e.Kind == pointer.Release {
+		a.mouseBtn = ""
+	}
+
 	if button == "" || action == "" {
 		return
 	}
-	a.proc.InputMouse(button, action, mods, 1, row, col)
+	a.proc.InputMouse(button, action, mods, grid, gridRow, gridCol)
 }
 
 // syncSize computes the grid size implied by the window's pixel size and

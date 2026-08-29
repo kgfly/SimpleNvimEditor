@@ -62,6 +62,31 @@ func (w *WindowSet) ordered() []Placement {
 	return out
 }
 
+// HitTest finds the topmost visible grid at the given base-grid cell
+// position and returns its grid ID and grid-relative (row, col). When
+// ext_multigrid is active, editor content lives on grids 2+ placed via
+// win_pos / win_float_pos; sending mouse events to grid 1 is wrong
+// because Nvim interprets the coordinates relative to grid 1, which is
+// just the chrome area, not the text. The caller should use the returned
+// grid and coordinates instead of blindly passing grid=1 to
+// nvim_input_mouse.
+//
+// Windows are checked in reverse z-order (topmost first) so that floats
+// and overlays win over underlying splits. If no window contains the
+// position, ok is false — the caller can fall back to grid=1.
+func HitTest(windows []Placement, row, col int) (grid, gridRow, gridCol int, ok bool) {
+	// Walk the list backwards: ordered() puts later/higher z-index
+	// entries at the end, so the topmost visible window is last.
+	for i := len(windows) - 1; i >= 0; i-- {
+		p := windows[i]
+		if row >= p.Row && row < p.Row+p.Height &&
+			col >= p.Col && col < p.Col+p.Width {
+			return p.GridID, row - p.Row, col - p.Col, true
+		}
+	}
+	return 0, 0, 0, false
+}
+
 // applyWinPos handles a normal (non-floating) window placement update:
 // [grid, win, start_row, start_col, width, height].
 func (s *State) applyWinPos(args []interface{}) {
