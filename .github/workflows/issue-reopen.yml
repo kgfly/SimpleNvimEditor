@@ -1,18 +1,38 @@
 name: Allow author to reopen issue
 
 on:
+  issues:
+    types: [closed]
   issue_comment:
     types: [created]
 
+permissions:
+  issues: write
+
 jobs:
+  # Tell the author the command exists. Without this the feature is
+  # undiscoverable -- nobody types a command they've never been shown.
+  hint:
+    if: github.event_name == 'issues'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post reopen hint
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+          AUTHOR: ${{ github.event.issue.user.login }}
+        run: |
+          gh issue comment "$ISSUE_NUM" -R "$REPO" --body \
+            "@${AUTHOR} — if this isn't resolved, comment \`/reopen\` and I'll reopen it for you."
+
   reopen:
     if: >-
-      github.event.issue.state == 'closed'
-      && contains(github.event.comment.body, '/reopen')
+      github.event_name == 'issue_comment'
+      && github.event.issue.state == 'closed'
       && github.event.comment.user.login == github.event.issue.user.login
+      && startsWith(github.event.comment.body, '/reopen')
     runs-on: ubuntu-latest
-    permissions:
-      issues: write
     steps:
       - name: Reopen issue
         env:
@@ -24,5 +44,4 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMENT_URL: ${{ github.event.comment.url }}
-        run: |
-          gh api "$COMMENT_URL/reactions" -f content='+1'
+        run: gh api "$COMMENT_URL/reactions" -f content='+1'
