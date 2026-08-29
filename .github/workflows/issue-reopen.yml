@@ -9,7 +9,7 @@ jobs:
     if: >-
       github.event.issue.state == 'closed'
       && contains(github.event.comment.body, '/reopen')
-      && github.event.comment.user.id == github.event.issue.user.id
+      && github.event.comment.user.login == github.event.issue.user.login
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -17,5 +17,13 @@ jobs:
       - name: Reopen issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE: ${{ github.event.issue.html_url }}
-        run: gh issue reopen "$ISSUE"
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+        run: gh issue reopen "$ISSUE_NUM" -R "$REPO"
+      - name: React to acknowledge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_URL: ${{ github.event.comment.url }}
+        run: |
+          gh api "$COMMENT_URL/reactions" -f content='+1'
