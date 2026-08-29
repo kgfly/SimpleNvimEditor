@@ -134,6 +134,14 @@ forwarded unchanged to Nvim, including commands and Nvim flags:
 simplenvim --maximized -- -c term -c edit /Users/user1/todo.txt
 ```
 
+## Reporting issues
+
+If an issue of yours was closed but the problem isn't actually fixed, comment
+`/reopen` on it. A bot reopens it automatically — no write access needed, and
+you don't have to wait for a maintainer.
+
+This only works on issues **you** opened, and `/reopen` must start the comment.
+
 ## Documentation
 
 - [`doc/developer.md`](doc/developer.md) — everything about building,
