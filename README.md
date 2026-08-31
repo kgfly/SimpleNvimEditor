@@ -3,7 +3,7 @@
 A simple, fast, native Neovim GUI written in [Go](https://go.dev/), using the
 [Gio](https://gioui.org) UI toolkit for minimalist.
 
-## Why a New GUI???
+## Why another Nvim GUI???
 
 - **Neovim-qt** is not actively maintained. I once filed a bug that took
   several months to get the maintainer's attention. Because the maintainer
@@ -35,6 +35,7 @@ There are surprisingly few candidates that meet that bar.
 - A small, plain `config.toml` for font and Nvim-launch settings.
 - Nerd font support.
 - GPU rendering from Go/Gio.
+- Seamlessly serve as your favourite terminal, by "simplenvim --maximized -- -c term -c startinsert". So you don't need other terminal software on your box.
 
 Simple and pure — no bloat, no bundled plugin marketplace, no telemetry.
 
