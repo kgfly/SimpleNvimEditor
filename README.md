@@ -1,15 +1,9 @@
 # SimpleNvimEditor
 
 A simple, fast, native Neovim GUI written in [Go](https://go.dev/), using the
-[Gio](https://gioui.org) UI toolkit.
+[Gio](https://gioui.org) UI toolkit for minimalist.
 
-It drives your real, unmodified `nvim` — your config, your plugins, your
-keymaps — inside a native, GPU-rendered window instead of a terminal
-emulator. No Electron, no bundled browser engine, no reimplementation of
-the editor: just Neovim, talking its standard UI protocol to a small Go
-binary.
-
-## Why start a new GUI?
+## Why a New GUI???
 
 - **Neovim-qt** is not actively maintained. I once filed a bug that took
   several months to get the maintainer's attention. Because the maintainer
@@ -23,7 +17,7 @@ binary.
 
 ...
 
-I just want a simple, lightweight GUI that works on all my machines.
+A minimalist, I just want a simple, lightweight GUI that works on all my machines.
 There are surprisingly few candidates that meet that bar.
 
 ## What it offers
@@ -40,6 +34,7 @@ There are surprisingly few candidates that meet that bar.
 - Live window resizing.
 - A small, plain `config.toml` for font and Nvim-launch settings.
 - Nerd font support.
+- GPU rendering from Go/Gio.
 
 Simple and pure — no bloat, no bundled plugin marketplace, no telemetry.
 
