@@ -1,9 +1,9 @@
 # SimpleNvimEditor
 
 A simple, fast, native Neovim GUI written in [Go](https://go.dev/), using the
-[Gio](https://gioui.org) UI toolkit for minimalist.
+[Gio](https://gioui.org) UI toolkit with a minimalist design.
 
-## Why another Nvim GUI???
+## Why another Neovim GUI?
 
 - **Neovim-qt** is not actively maintained. I once filed a bug that took
   several months to get the maintainer's attention. Because the maintainer
@@ -15,9 +15,7 @@ A simple, fast, native Neovim GUI written in [Go](https://go.dev/), using the
 - Many other GUIs cannot run on all three platforms (macOS, Linux,
   Windows) or have other significant limitations.
 
-...
-
-A minimalist, I just want a simple, lightweight GUI that works on all my machines.
+As a minimalist, I just want a simple, lightweight GUI that works on all my machines.
 There are surprisingly few candidates that meet that bar.
 
 ## What it offers
@@ -33,11 +31,12 @@ There are surprisingly few candidates that meet that bar.
   Nvim's own input protocol.
 - Live window resizing.
 - A small, plain `config.toml` for font and Nvim-launch settings.
-- Nerd font support.
+- Nerd Font support.
 - GPU rendering from Go/Gio.
-- Seamlessly serve as your favourite terminal, by "simplenvim --maximized -- -c term -c startinsert". So you don't need other terminal software on your box.
+- Can serve as a terminal with `simplenvim --maximized -- -c term -c startinsert`,
+  so you do not need separate terminal software.
 
-Simple and pure — no bloat, no bundled plugin marketplace, no telemetry.
+Simple and pure: no bloat, no bundled plugin marketplace, and no telemetry.
 
 ## Installing
 
@@ -106,7 +105,7 @@ gh attestation verify <downloaded-file> -R kgfly/SimpleNvimEditor
 
 ## Configuration
 
-SimpleNvimEditor reads an optional TOML config file from your OS's
+SimpleNvimEditor reads an optional TOML configuration file from your OS's
 standard config directory. It's entirely optional — sane defaults apply
 if it's missing, or if any field is left out:
 
@@ -132,8 +131,8 @@ above are exactly what's used if it's absent.
 
 ### `alt_is_meta`
 
-Only meaningful on macOS, where Option is a composing key: Option-a types
-`å` and Option-Shift-a types `Å`. Keeping the default `true` means those
+This setting is only meaningful on macOS, where Option is a composing key:
+Option-a types `å` and Option-Shift-a types `Å`. Keeping the default `true` means those
 chords go to Nvim so `<A-a>` and `<A-A>` mappings fire. Set it to `false`
 if you would rather type composed characters than use Option as Meta.
 
@@ -142,17 +141,19 @@ produces text, so this setting has no effect there.
 
 ## Command-line arguments
 
-Use `--maximized` to start with a maximized window. Arguments after `--` are
-forwarded unchanged to Nvim, including commands and Nvim flags:
+Use `--maximized` to start with a maximized window, or `--nvim <path>` to use
+a specific Neovim executable. File arguments are forwarded to Neovim. Put
+`--` before Neovim flags or commands so SimpleNvimEditor does not interpret
+them as its own options:
 
 ```sh
-simplenvim --maximized -- -c term -c edit /Users/user1/todo.txt
+simplenvim --maximized -- -c term -c 'edit ~/todo.txt'
 ```
 
 ## Reporting issues
 
 If an issue of yours was closed but the problem isn't actually fixed, comment
-`/reopen` on it. A bot reopens it automatically — no write access needed, and
+`/reopen` on it. A bot reopens it automatically: no write access is needed, and
 you don't have to wait for a maintainer.
 
 This only works on issues **you** opened, and `/reopen` must start the comment.
