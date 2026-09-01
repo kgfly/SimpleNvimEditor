@@ -83,10 +83,8 @@ Prefer this over loosening the permissions on your home directory.
 Releases are **not code-signed** (that requires a paid Apple developer
 account and a Windows certificate). The binaries are fine; the OS just
 can't verify who made them, so it warns on first launch.
-
-**All installation packages are built exclusively by the GitHub CI/CD
-pipeline with all security checks enabled. No third party is involved in
-the package creation.**
+And  all installation packages are built exclusively by the GitHub free tier CI/CD
+pipeline.
 
 - **macOS** — right-click the app and choose *Open*, or:
   ```sh
