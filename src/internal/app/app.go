@@ -143,6 +143,7 @@ func (a *App) layout(gtx layout.Context) {
 
 	a.handleInput(gtx)
 	a.syncSize(size)
+	a.drainOpenRequests()
 
 	snap := a.state.Snapshot()
 	if snap.Title != a.title {

@@ -6,6 +6,7 @@ package nvimproc
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/neovim/go-client/nvim"
@@ -204,6 +205,33 @@ func (p *Process) applyResize(cols, rows int) {
 		return
 	}
 	_ = p.Nvim.TryResizeUI(cols, rows)
+}
+
+// OpenFile tells Nvim to edit the given path in the current window.
+//
+// The path is sent as a command rather than as keystrokes because it is
+// untrusted input: a filename can contain characters that nvim_input would
+// interpret as key notation ("<Esc>"), and typing it would also depend on
+// the editor's current mode. `:edit` takes the name as data.
+//
+// fnameescape is applied inside Nvim so that spaces, '#', '%' and other
+// characters with meaning to the command line are treated literally --
+// doing it here would mean reimplementing Vim's escaping rules in Go.
+func (p *Process) OpenFile(path string) {
+	if path == "" {
+		return
+	}
+	p.cmds <- func() {
+		_ = p.Nvim.Command("edit " + vimEscape(path))
+	}
+}
+
+// vimEscape quotes path for use inside a Vim command line by deferring to
+// Nvim's own fnameescape() at evaluation time.
+func vimEscape(path string) string {
+	// Single-quoted Vim strings are literal; the only escape is a doubled
+	// quote. Wrapping in fnameescape() then handles command-line metachars.
+	return "`=fnameescape('" + strings.ReplaceAll(path, "'", "''") + "')`"
 }
 
 // RequestQuit asks Nvim to quit, honoring unsaved-changes prompts. Because
