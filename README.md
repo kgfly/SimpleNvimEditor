@@ -1,15 +1,9 @@
 # SimpleNvimEditor
 
 A simple, fast, native Neovim GUI written in [Go](https://go.dev/), using the
-[Gio](https://gioui.org) UI toolkit.
+[Gio](https://gioui.org) UI toolkit with a minimalist design.
 
-It drives your real, unmodified `nvim` — your config, your plugins, your
-keymaps — inside a native, GPU-rendered window instead of a terminal
-emulator. No Electron, no bundled browser engine, no reimplementation of
-the editor: just Neovim, talking its standard UI protocol to a small Go
-binary.
-
-## Why start a new GUI?
+## Why another Neovim GUI?
 
 - **Neovim-qt** is not actively maintained. I once filed a bug that took
   several months to get the maintainer's attention. Because the maintainer
@@ -21,9 +15,7 @@ binary.
 - Many other GUIs cannot run on all three platforms (macOS, Linux,
   Windows) or have other significant limitations.
 
-...
-
-I just want a simple, lightweight GUI that works on all my machines.
+As a minimalist, I just want a simple, lightweight GUI that works on all my machines.
 There are surprisingly few candidates that meet that bar.
 
 ## What it offers
@@ -39,9 +31,12 @@ There are surprisingly few candidates that meet that bar.
   Nvim's own input protocol.
 - Live window resizing.
 - A small, plain `config.toml` for font and Nvim-launch settings.
-- Nerd font support.
+- Nerd Font support.
+- GPU rendering from Go/Gio.
+- Can serve as a terminal with `simplenvim --maximized -- -c term -c startinsert`,
+  so you do not need separate terminal software.
 
-Simple and pure — no bloat, no bundled plugin marketplace, no telemetry.
+Simple and pure: no bloat, no bundled plugin marketplace, and no telemetry.
 
 ## Installing
 
@@ -88,10 +83,8 @@ Prefer this over loosening the permissions on your home directory.
 Releases are **not code-signed** (that requires a paid Apple developer
 account and a Windows certificate). The binaries are fine; the OS just
 can't verify who made them, so it warns on first launch.
-
-**All installation packages are built exclusively by the GitHub CI/CD
-pipeline with all security checks enabled. No third party is involved in
-the package creation.**
+And  all installation packages are built exclusively by the GitHub free tier CI/CD
+pipeline.
 
 - **macOS** — right-click the app and choose *Open*, or:
   ```sh
@@ -110,7 +103,7 @@ gh attestation verify <downloaded-file> -R kgfly/SimpleNvimEditor
 
 ## Configuration
 
-SimpleNvimEditor reads an optional TOML config file from your OS's
+SimpleNvimEditor reads an optional TOML configuration file from your OS's
 standard config directory. It's entirely optional — sane defaults apply
 if it's missing, or if any field is left out:
 
@@ -136,8 +129,8 @@ above are exactly what's used if it's absent.
 
 ### `alt_is_meta`
 
-Only meaningful on macOS, where Option is a composing key: Option-a types
-`å` and Option-Shift-a types `Å`. Keeping the default `true` means those
+This setting is only meaningful on macOS, where Option is a composing key:
+Option-a types `å` and Option-Shift-a types `Å`. Keeping the default `true` means those
 chords go to Nvim so `<A-a>` and `<A-A>` mappings fire. Set it to `false`
 if you would rather type composed characters than use Option as Meta.
 
@@ -146,17 +139,19 @@ produces text, so this setting has no effect there.
 
 ## Command-line arguments
 
-Use `--maximized` to start with a maximized window. Arguments after `--` are
-forwarded unchanged to Nvim, including commands and Nvim flags:
+Use `--maximized` to start with a maximized window, or `--nvim <path>` to use
+a specific Neovim executable. File arguments are forwarded to Neovim. Put
+`--` before Neovim flags or commands so SimpleNvimEditor does not interpret
+them as its own options:
 
 ```sh
-simplenvim --maximized -- -c term -c edit /Users/user1/todo.txt
+simplenvim --maximized -- -c term -c 'edit ~/todo.txt'
 ```
 
 ## Reporting issues
 
 If an issue of yours was closed but the problem isn't actually fixed, comment
-`/reopen` on it. A bot reopens it automatically — no write access needed, and
+`/reopen` on it. A bot reopens it automatically: no write access is needed, and
 you don't have to wait for a maintainer.
 
 This only works on issues **you** opened, and `/reopen` must start the comment.
