@@ -36,26 +36,54 @@ type Fonts struct {
 	Metrics Metrics
 }
 
-// NewShaper builds a text shaper according to the configuration: either the
-// bundled, fully self-contained Go Mono typeface (the default, chosen so
-// the app renders identically regardless of what's installed on the host),
-// or the system font matcher when the user opts in. System-font mode still
-// includes the bundled Go Mono as a fallback so text never disappears if a
-// configured family can't be found.
-func NewShaper(cfg config.EditorConfig) *text.Shaper {
-	if cfg.UseSystemFonts {
-		return text.NewShaper(text.WithCollection(gofont.Collection()))
-	}
-	return text.NewShaper(text.NoSystemFonts(), text.WithCollection(gofont.Collection()))
+// NewShaper builds a text shaper. The bundled Go Mono typeface is always
+// included, so the default look is identical on every host and text can
+// never disappear entirely if a configured family is missing.
+//
+// System fonts are always enabled, because no bundled font covers Unicode:
+// Go Mono has no CJK at all, so disabling system fonts is precisely what
+// turns Chinese, kana and hangul into tofu. The bundled face still wins
+// for the characters it does have, since it is queried first.
+func NewShaper() *text.Shaper {
+	return text.NewShaper(text.WithCollection(gofont.Collection()))
 }
 
 // FontFace returns the font.Font to request from the shaper for grid text.
+//
+// The typeface is a comma-separated fallback list, which Gio parses into an
+// ordered set of families: the user's font first, then per-script families
+// for whatever it lacks. Without this, any character missing from a single
+// chosen font is drawn as .notdef (tofu) even when the system has a
+// perfectly good font for it -- which is why simplified-only Chinese
+// characters vanished under fonts that carry the shared Han set.
 func FontFace(cfg config.EditorConfig) font.Font {
 	if cfg.UseSystemFonts {
 		family, weight := parseFontFamily(cfg.FontFamily)
-		return font.Font{Typeface: font.Typeface(family), Weight: weight}
+		return font.Font{Typeface: font.Typeface(withFallbacks(family)), Weight: weight}
 	}
-	return font.Font{Typeface: "Go Mono"}
+	return font.Font{Typeface: font.Typeface(withFallbacks("Go Mono"))}
+}
+
+// withFallbacks appends the platform's per-script families to primary,
+// skipping any the user already listed. Gio's family parser treats a
+// quoted name as a single family, so names containing spaces are quoted.
+func withFallbacks(primary string) string {
+	names := []string{primary}
+	seen := map[string]bool{strings.ToLower(strings.TrimSpace(primary)): true}
+	for _, f := range config.ScriptFallbacks() {
+		key := strings.ToLower(f)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		names = append(names, f)
+	}
+	for i, n := range names {
+		if strings.ContainsRune(n, ' ') {
+			names[i] = `"` + n + `"`
+		}
+	}
+	return strings.Join(names, ", ")
 }
 
 func parseFontFamily(name string) (string, font.Weight) {

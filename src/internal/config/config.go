@@ -130,6 +130,57 @@ func FilePath() (string, error) {
 	return filepath.Join(dir, "config.toml"), nil
 }
 
+// ScriptFallbacks returns families that, between them, cover the scripts a
+// typical programming font omits: CJK, kana, hangul and friends.
+//
+// No single monospace font covers Unicode, and the gap is not neatly
+// "CJK": Hack Nerd Font Mono, for instance, has the shared Han characters
+// but not the simplified-only ones, so a line of Chinese comes out half
+// text and half tofu. Listing per-script families after the user's choice
+// lets the shaper resolve each character in the first family that has it.
+//
+// The list must also survive a *weighted* request. A font_family of
+// "... Bold" applies Bold to every family in the chain, and most macOS CJK
+// faces (PingFang, Hiragino, even Menlo) ship no bold CJK: at Bold they
+// report the character as missing and it renders as tofu. Heiti SC and
+// Songti SC do have bold coverage, so they are included as the weighted
+// backstop -- without them "你好" loses 你 the moment the font is bold.
+//
+// Deliberately excluded: Arial Unicode MS. It matches almost any character
+// and so wins the fallback race from proper CJK faces, but it is
+// proportional rather than monospace, which is what made "你知道吗" render
+// with characters of visibly different sizes on one line.
+func ScriptFallbacks() []string {
+	switch runtime.GOOS {
+	case "darwin":
+		return []string{
+			"Menlo",
+			"PingFang SC",
+			"PingFang TC",
+			"Heiti SC",
+			"Songti SC",
+			"Hiragino Sans",
+			"Apple SD Gothic Neo",
+		}
+	case "windows":
+		return []string{
+			"Consolas",
+			"Microsoft YaHei",
+			"Microsoft JhengHei",
+			"Yu Gothic",
+			"Malgun Gothic",
+		}
+	default:
+		return []string{
+			"DejaVu Sans Mono",
+			"Noto Sans Mono CJK SC",
+			"Noto Sans CJK SC",
+			"Noto Sans CJK JP",
+			"Noto Sans CJK KR",
+		}
+	}
+}
+
 // DefaultFontFamilyForOS returns a reasonable monospace font family for
 // the current OS, as a starting point for users who want to set font_family.
 func DefaultFontFamilyForOS() string {

@@ -29,7 +29,7 @@ import (
 // are wider than the cells they are assigned to and neighbours collide.
 func TestCellWidthMatchesShapedAdvance(t *testing.T) {
 	cfg := config.Default().Editor
-	shaper := render.NewShaper(cfg)
+	shaper := render.NewShaper()
 	face := render.FontFace(cfg)
 
 	const probe = "MMMMMMMMMMMMMMMMMMMM"
@@ -70,7 +70,7 @@ func TestCellWidthMatchesShapedAdvance(t *testing.T) {
 func TestShapedRunDriftsFromCellGrid(t *testing.T) {
 	fonts := testFonts(t)
 	cfg := config.Default().Editor
-	shaper := render.NewShaper(cfg)
+	shaper := render.NewShaper()
 	face := render.FontFace(cfg)
 
 	var measureOps op.Ops
