@@ -26,7 +26,7 @@ func newTestContext(ops *op.Ops, size image.Point) layout.Context {
 }
 
 func TestMeasureReturnsPositiveMetrics(t *testing.T) {
-	shaper := render.NewShaper(config.Default().Editor)
+	shaper := render.NewShaper()
 	face := render.FontFace(config.Default().Editor)
 
 	var ops op.Ops
@@ -42,7 +42,7 @@ func TestMeasureReturnsPositiveMetrics(t *testing.T) {
 }
 
 func TestMeasureScalesWithFontSize(t *testing.T) {
-	shaper := render.NewShaper(config.Default().Editor)
+	shaper := render.NewShaper()
 	face := render.FontFace(config.Default().Editor)
 
 	var ops1, ops2 op.Ops
@@ -75,10 +75,10 @@ func TestFontFaceRespectsUseSystemFonts(t *testing.T) {
 }
 
 func TestNewShaperNeverReturnsNil(t *testing.T) {
-	if render.NewShaper(config.EditorConfig{UseSystemFonts: false}) == nil {
+	if render.NewShaper() == nil {
 		t.Fatalf("NewShaper(bundled) returned nil")
 	}
-	if render.NewShaper(config.EditorConfig{UseSystemFonts: true}) == nil {
+	if render.NewShaper() == nil {
 		t.Fatalf("NewShaper(system) returned nil")
 	}
 }
@@ -90,7 +90,7 @@ func testFonts(t *testing.T) render.Fonts {
 	t.Helper()
 	cfg := config.Default().Editor
 	return render.Fonts{
-		Shaper:  render.NewShaper(cfg),
+		Shaper:  render.NewShaper(),
 		Face:    render.FontFace(cfg),
 		Size:    unit.Sp(cfg.FontSize),
 		Metrics: render.Metrics{CellWidth: 8, CellHeight: 16, Baseline: 12},

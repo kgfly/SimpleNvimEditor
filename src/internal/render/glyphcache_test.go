@@ -31,7 +31,7 @@ func testFonts(t testing.TB, scale float32, px image.Point) Fonts {
 	t.Helper()
 	cfg := config.Default()
 	f := Fonts{
-		Shaper: NewShaper(cfg.Editor),
+		Shaper: NewShaper(),
 		Face:   FontFace(cfg.Editor),
 		Size:   unit.Sp(cfg.Editor.FontSize),
 	}

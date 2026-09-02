@@ -28,7 +28,7 @@ func newMeasuredApp() *App {
 	cfg := config.Default()
 	a := New(cfg, nil, Options{})
 	a.fonts = render.Fonts{
-		Shaper: render.NewShaper(cfg.Editor),
+		Shaper: render.NewShaper(),
 		Face:   render.FontFace(cfg.Editor),
 		Size:   unit.Sp(cfg.Editor.FontSize),
 	}

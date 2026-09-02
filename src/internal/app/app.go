@@ -110,7 +110,7 @@ func (a *App) Run(win *gioapp.Window) error {
 	win.Option(windowOptions...)
 
 	a.fonts = render.Fonts{
-		Shaper: render.NewShaper(a.cfg.Editor),
+		Shaper: render.NewShaper(),
 		Face:   render.FontFace(a.cfg.Editor),
 		Size:   unit.Sp(a.cfg.Editor.FontSize),
 	}
