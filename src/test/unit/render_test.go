@@ -3,8 +3,10 @@ package unit_test
 import (
 	"image"
 	"image/color"
+	"strings"
 	"testing"
 
+	"gioui.org/font"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
@@ -57,29 +59,67 @@ func TestMeasureScalesWithFontSize(t *testing.T) {
 	}
 }
 
+// primaryFamily returns the first family of a comma-separated fallback
+// list, unquoted. FontFace appends per-script fallbacks (so CJK and other
+// scripts don't render as tofu), but the user's chosen font must always
+// come first, since it is what supplies the characters it does have.
+func primaryFamily(typeface font.Typeface) string {
+	head, _, _ := strings.Cut(string(typeface), ",")
+	return strings.Trim(strings.TrimSpace(head), `"`)
+}
+
 func TestFontFaceRespectsUseSystemFonts(t *testing.T) {
 	bundled := render.FontFace(config.EditorConfig{UseSystemFonts: false})
-	if bundled.Typeface != "Go Mono" {
-		t.Errorf("bundled FontFace typeface = %q, want %q", bundled.Typeface, "Go Mono")
+	if got := primaryFamily(bundled.Typeface); got != "Go Mono" {
+		t.Errorf("bundled FontFace primary family = %q, want %q", got, "Go Mono")
 	}
 
 	system := render.FontFace(config.EditorConfig{UseSystemFonts: true, FontFamily: "Consolas"})
-	if system.Typeface != "Consolas" {
-		t.Errorf("system FontFace typeface = %q, want %q", system.Typeface, "Consolas")
+	if got := primaryFamily(system.Typeface); got != "Consolas" {
+		t.Errorf("system FontFace primary family = %q, want %q", got, "Consolas")
 	}
 
 	bold := render.FontFace(config.EditorConfig{UseSystemFonts: true, FontFamily: "Hack Nerd Font Mono Bold"})
-	if bold.Typeface != "Hack Nerd Font Mono" {
-		t.Errorf("bold FontFace typeface = %q, want %q", bold.Typeface, "Hack Nerd Font Mono")
+	if got := primaryFamily(bold.Typeface); got != "Hack Nerd Font Mono" {
+		t.Errorf("bold FontFace primary family = %q, want %q", got, "Hack Nerd Font Mono")
+	}
+	if bold.Weight != font.Bold {
+		t.Errorf("bold FontFace weight = %v, want Bold", bold.Weight)
+	}
+}
+
+// TestFontFaceAppendsScriptFallbacks pins the behaviour that fixes tofu:
+// the typeface must be a fallback list, not a single family, so characters
+// the chosen font lacks are resolved from a font that has them.
+func TestFontFaceAppendsScriptFallbacks(t *testing.T) {
+	f := render.FontFace(config.EditorConfig{UseSystemFonts: true, FontFamily: "Hack Nerd Font Mono"})
+	if !strings.Contains(string(f.Typeface), ",") {
+		t.Fatalf("typeface = %q, want a comma-separated fallback list", f.Typeface)
+	}
+	for _, want := range config.ScriptFallbacks() {
+		if !strings.Contains(string(f.Typeface), want) {
+			t.Errorf("typeface %q is missing fallback %q", f.Typeface, want)
+		}
+	}
+}
+
+// TestFontFaceDoesNotRepeatPrimary guards against listing the user's font
+// twice when it is also one of the platform fallbacks.
+func TestFontFaceDoesNotRepeatPrimary(t *testing.T) {
+	fallbacks := config.ScriptFallbacks()
+	if len(fallbacks) == 0 {
+		t.Skip("no fallbacks on this platform")
+	}
+	dup := fallbacks[0]
+	f := render.FontFace(config.EditorConfig{UseSystemFonts: true, FontFamily: dup})
+	if n := strings.Count(string(f.Typeface), dup); n != 1 {
+		t.Errorf("family %q appears %d times in %q, want exactly 1", dup, n, f.Typeface)
 	}
 }
 
 func TestNewShaperNeverReturnsNil(t *testing.T) {
 	if render.NewShaper() == nil {
-		t.Fatalf("NewShaper(bundled) returned nil")
-	}
-	if render.NewShaper() == nil {
-		t.Fatalf("NewShaper(system) returned nil")
+		t.Fatalf("NewShaper() returned nil")
 	}
 }
 
@@ -299,8 +339,8 @@ func TestFontFaceWeightSuffixes(t *testing.T) {
 	}
 	for _, c := range cases {
 		f := render.FontFace(config.EditorConfig{UseSystemFonts: true, FontFamily: c.family})
-		if string(f.Typeface) != c.wantFace {
-			t.Errorf("FontFace(%q).Typeface = %q, want %q", c.family, f.Typeface, c.wantFace)
+		if got := primaryFamily(f.Typeface); got != c.wantFace {
+			t.Errorf("FontFace(%q) primary family = %q, want %q", c.family, got, c.wantFace)
 		}
 	}
 }
