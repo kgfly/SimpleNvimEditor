@@ -149,6 +149,61 @@ func TestMsgSetPosRowNegativeOneHidesTheGrid(t *testing.T) {
 	}
 }
 
+func TestHitTestFindsGridContainingPosition(t *testing.T) {
+	windows := []uistate.Placement{
+		{GridID: 2, Row: 0, Col: 0, Width: 40, Height: 24},
+	}
+	grid, gridRow, gridCol, ok := uistate.HitTest(windows, 5, 10)
+	if !ok {
+		t.Fatalf("HitTest missed a position inside the only window")
+	}
+	if grid != 2 || gridRow != 5 || gridCol != 10 {
+		t.Fatalf("HitTest = (grid=%d, row=%d, col=%d), want (2, 5, 10)", grid, gridRow, gridCol)
+	}
+}
+
+func TestHitTestTranslatesToGridRelativeCoordinates(t *testing.T) {
+	// Window starts at (3, 4); a click at (7, 12) should land at (4, 8)
+	// relative to the grid's own origin.
+	windows := []uistate.Placement{
+		{GridID: 5, Row: 3, Col: 4, Width: 20, Height: 20},
+	}
+	grid, gridRow, gridCol, ok := uistate.HitTest(windows, 7, 12)
+	if !ok || grid != 5 || gridRow != 4 || gridCol != 8 {
+		t.Fatalf("HitTest = (grid=%d, row=%d, col=%d, ok=%v), want (5, 4, 8, true)", grid, gridRow, gridCol, ok)
+	}
+}
+
+func TestHitTestReturnsFalseWhenNothingContainsPosition(t *testing.T) {
+	windows := []uistate.Placement{
+		{GridID: 2, Row: 0, Col: 0, Width: 10, Height: 10},
+	}
+	// Just past the bottom-right corner: row/col == Row+Height / Col+Width
+	// is exclusive, so this must miss.
+	_, _, _, ok := uistate.HitTest(windows, 10, 10)
+	if ok {
+		t.Fatalf("HitTest matched a position exactly on the window's exclusive edge")
+	}
+
+	_, _, _, ok = uistate.HitTest(nil, 0, 0)
+	if ok {
+		t.Fatalf("HitTest matched against an empty window list")
+	}
+}
+
+func TestHitTestPrefersTopmostOverlappingWindow(t *testing.T) {
+	// Both windows cover (5,5). ordered() places the topmost window last,
+	// so HitTest -- which walks backwards -- must return the second one.
+	windows := []uistate.Placement{
+		{GridID: 2, Row: 0, Col: 0, Width: 20, Height: 20},
+		{GridID: 3, Row: 0, Col: 0, Width: 20, Height: 20},
+	}
+	grid, _, _, ok := uistate.HitTest(windows, 5, 5)
+	if !ok || grid != 3 {
+		t.Fatalf("HitTest = (grid=%d, ok=%v), want the topmost (last) grid 3", grid, ok)
+	}
+}
+
 func TestUpsertPreservesZIndexAcrossUpdates(t *testing.T) {
 	s := uistate.New()
 	s.Apply(batch(
