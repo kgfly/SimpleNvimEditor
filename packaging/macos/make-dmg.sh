@@ -54,12 +54,27 @@ cat > "build/${BUNDLE}/Contents/Info.plist" <<PLIST
   <key>CFBundlePackageType</key>       <string>APPL</string>
   <key>CFBundleSignature</key>         <string>????</string>
   <key>CFBundleIconFile</key>          <string>AppIcon</string>
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key>       <string>Text Documents</string>
+      <key>CFBundleTypeRole</key>       <string>Editor</string>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>txt</string>
+        <string>log</string>
+        <string>t</string>
+      </array>
+      <key>LSHandlerRank</key>          <string>Alternate</string>
+    </dict>
+  </array>
   <key>LSMinimumSystemVersion</key>    <string>11.0</string>
   <key>NSHighResolutionCapable</key>   <true/>
   <key>NSSupportsAutomaticGraphicsSwitching</key><true/>
 </dict>
 </plist>
 PLIST
+plutil -lint "build/${BUNDLE}/Contents/Info.plist"
 
 # Ad-hoc sign the bundle. This is NOT Gatekeeper notarization (that needs a
 # paid Apple account); it establishes the app's *identity*, which is a

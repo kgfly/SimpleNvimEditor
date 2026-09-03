@@ -36,6 +36,8 @@ SolidCompression=yes
 WizardStyle=modern
 SetupIconFile=..\..\src\cmd\simplenvim\icon.ico
 ChangesEnvironment=yes
+; Refresh Explorer's association/context-menu cache after install/uninstall.
+ChangesAssociations=yes
 ; Per-user install by default so no UAC prompt is needed.
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
@@ -65,6 +67,18 @@ Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\icon.ico"; Tasks: desktopicon
 
 [Registry]
+; Add a non-invasive Explorer verb for every file type. This does not claim
+; file associations or change defaults; it only adds an explicit editor action.
+; HKCU matches the installer's default per-user mode and needs no elevation.
+Root: HKCU; Subkey: "Software\Classes\*\shell\SimpleNvimEditor"; \
+  ValueType: string; ValueName: ""; ValueData: "Edit with {#MyAppName}"; \
+  Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\*\shell\SimpleNvimEditor"; \
+  ValueType: string; ValueName: "Icon"; ValueData: "{app}\{#MyAppExeName},0"
+Root: HKCU; Subkey: "Software\Classes\*\shell\SimpleNvimEditor\command"; \
+  ValueType: string; ValueName: ""; \
+  ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
 ; Always modify the per-user PATH, even for an admin install, to avoid
 ; HKLM\Environment errors on machines with restrictive policies.
 Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; \

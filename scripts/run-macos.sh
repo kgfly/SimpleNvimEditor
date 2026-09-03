@@ -55,12 +55,27 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleVersion</key><string>dev</string>
   <key>CFBundleShortVersionString</key><string>dev</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key><string>Text Documents</string>
+      <key>CFBundleTypeRole</key><string>Editor</string>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>txt</string>
+        <string>log</string>
+        <string>t</string>
+      </array>
+      <key>LSHandlerRank</key><string>Alternate</string>
+    </dict>
+  </array>
   <key>LSMinimumSystemVersion</key><string>11.0</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSMicrophoneUsageDescription</key><string>Voice dictation into the editor.</string>
 </dict>
 </plist>
 PLIST
+plutil -lint "$APP/Contents/Info.plist"
 
 # Ad-hoc signing (-s -) needs no certificate and no Apple account. Without it
 # the bundle keeps the Go linker's default signature (Identifier=a.out, with
