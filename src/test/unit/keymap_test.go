@@ -82,8 +82,10 @@ func TestEncodeKeyModifierCombinations(t *testing.T) {
 		{"command (mac cmd) + letter", key.Event{Name: "A", Modifiers: key.ModCommand, State: key.Press}, "<D-a>"},
 		{"super (win/linux logo) + letter", key.Event{Name: "A", Modifiers: key.ModSuper, State: key.Press}, "<D-a>"},
 		{"alt + letter", key.Event{Name: "A", Modifiers: key.ModAlt, State: key.Press}, "<A-a>"},
-		{"ctrl+shift+letter", key.Event{Name: "A", Modifiers: key.ModCtrl | key.ModShift, State: key.Press}, "<C-A>"},
-		{"all four modifiers", key.Event{Name: "A", Modifiers: key.ModCtrl | key.ModCommand | key.ModShift | key.ModAlt, State: key.Press}, "<C-D-A-A>"},
+		// Ctrl collapses a letter to a control byte, discarding case, so a
+		// Ctrl+Shift chord needs an explicit "S-" to stay distinct from <C-a>.
+		{"ctrl+shift+letter", key.Event{Name: "A", Modifiers: key.ModCtrl | key.ModShift, State: key.Press}, "<C-S-a>"},
+		{"all four modifiers", key.Event{Name: "A", Modifiers: key.ModCtrl | key.ModCommand | key.ModShift | key.ModAlt, State: key.Press}, "<C-D-S-A-a>"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

@@ -40,6 +40,12 @@ func main() {
 
 	a := editorapp.New(cfg, opts.NvimArgs, editorapp.Options{Maximized: opts.Maximized})
 
+	// Subscribe to "open this document" requests from the desktop
+	// environment before the event loop starts. On macOS the request for
+	// the file that caused the launch arrives during startup, so a later
+	// subscription would miss it and the app would open empty.
+	editorapp.InstallOpenFileHandler()
+
 	go func() {
 		win := new(gioapp.Window)
 		if err := a.Run(win); err != nil {

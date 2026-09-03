@@ -20,6 +20,10 @@ import (
 	"github.com/kgfly/SimpleNvimEditor/internal/uistate"
 )
 
+// sample deliberately mixes scripts so a screenshot shows whether
+// multi-language rendering works generally, not just for CJK.
+const sample = "你知道吗 test 好中文 | kana あいう | 한글 | Привет | Ωμέγα"
+
 // TestMultiLanguageWithRealConfig renders a multi-script line using the
 // user's actual on-disk config through the whole live stack, and writes a
 // PNG for visual confirmation.

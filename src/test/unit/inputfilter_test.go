@@ -105,11 +105,14 @@ func TestInputFiltersDeliverModifiedKeys(t *testing.T) {
 			want: "<A-x>",
 		},
 		{
-			// Shift is already encoded in the glyph ("A" not "a"), so
-			// an extra "S-" would make Nvim see a different key.
+			// Ctrl folds a letter to a control byte, which discards case:
+			// "<C-A>" and "<C-a>" are the same byte. So Ctrl+Shift has
+			// nowhere to carry the Shift except an explicit "S-" prefix.
+			// (Alt differs -- the shifted glyph itself encodes Shift.)
+			// See EncodeKey in internal/input/keymap.go.
 			desc: "ctrl-shift combination",
 			ev:   key.Event{Name: "A", Modifiers: key.ModCtrl | key.ModShift, State: key.Press},
-			want: "<C-A>",
+			want: "<C-S-a>",
 		},
 		{
 			desc: "named key with a modifier",

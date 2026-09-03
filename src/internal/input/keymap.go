@@ -86,6 +86,16 @@ func EncodeKey(e key.Event) string {
 		return wrap("Bslash", e.Modifiers, true)
 	}
 
+	// Ctrl folds a letter down to a control byte, and that throws the case
+	// away: "<C-A>" and "<C-a>" are both 0x12. So unlike Alt -- where the
+	// shifted glyph itself carries Shift and "<A-A>" == "<A-S-a>" -- a
+	// Ctrl+Shift chord has nowhere to put the Shift except an explicit
+	// "S-" prefix. Emit "<C-S-r>", which Nvim decodes as its own key.
+	if r >= 'A' && r <= 'Z' &&
+		e.Modifiers.Contain(key.ModCtrl) && e.Modifiers.Contain(key.ModShift) {
+		return wrap(strings.ToLower(text), e.Modifiers, false)
+	}
+
 	// Shift is already encoded in the glyph/case for printable keys, so
 	// don't also add an "S-" prefix (that would turn "!" into "<S-!>").
 	return wrap(text, e.Modifiers&^key.ModShift, false)
