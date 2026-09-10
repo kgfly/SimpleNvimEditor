@@ -20,7 +20,8 @@ type State struct {
 	hl      *HighlightTable
 	cursor  Cursor
 
-	title string
+	title   string
+	guiFont string
 
 	mode      string
 	modeIdx   int
@@ -88,6 +89,8 @@ func (s *State) Apply(batch [][]interface{}) bool {
 			s.applyModeChange(args)
 		case "set_title":
 			s.applySetTitle(args)
+		case "option_set":
+			s.applyOptionSet(args)
 		case "busy_start":
 			s.busy = true
 		case "busy_stop":
@@ -152,6 +155,27 @@ func (s *State) Snapshot() Snapshot {
 		ModeIdx:   s.modeIdx,
 		ModeInfos: append([]ModeInfo(nil), s.modeInfos...),
 		Busy:      s.busy,
+	}
+}
+
+// GuiFont returns the latest guifont value reported by Nvim.
+func (s *State) GuiFont() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.guiFont
+}
+
+func (s *State) applyOptionSet(args []interface{}) {
+	for _, arg := range args {
+		row, ok := arg.([]interface{})
+		if !ok || len(row) < 2 {
+			continue
+		}
+		name, nameOK := row[0].(string)
+		value, valueOK := row[1].(string)
+		if name == "guifont" && nameOK && valueOK {
+			s.guiFont = value
+		}
 	}
 }
 

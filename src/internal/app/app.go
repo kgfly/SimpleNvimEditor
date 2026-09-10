@@ -7,6 +7,7 @@ package editorapp
 
 import (
 	"image"
+	"strconv"
 	"time"
 
 	gioapp "gioui.org/app"
@@ -139,6 +140,7 @@ func (a *App) Run(win *gioapp.Window) error {
 // doesn't have to wait for a frame to be scheduled before it's processed.
 func (a *App) layout(gtx layout.Context) {
 	size := gtx.Constraints.Max
+	a.syncGuiFont(a.state.GuiFont())
 	a.syncMetrics(gtx)
 
 	a.handleInput(gtx)
@@ -155,6 +157,36 @@ func (a *App) layout(gtx layout.Context) {
 	}
 
 	render.Frame(gtx, a.fonts, snap)
+}
+
+func (a *App) syncGuiFont(guiFont string) {
+	size, ok := guiFontSize(guiFont)
+	if !ok || a.fonts.Size == unit.Sp(size) {
+		return
+	}
+	a.fonts.Size = unit.Sp(size)
+	a.fonts.Metrics = render.Metrics{}
+}
+
+func guiFontSize(guiFont string) (float32, bool) {
+	for i := 0; i+2 < len(guiFont); i++ {
+		if guiFont[i] != ':' || (guiFont[i+1] != 'h' && guiFont[i+1] != 'H') {
+			continue
+		}
+		start := i + 2
+		end := start
+		for end < len(guiFont) && ((guiFont[end] >= '0' && guiFont[end] <= '9') || guiFont[end] == '.') {
+			end++
+		}
+		if end == start {
+			continue
+		}
+		parsed, err := strconv.ParseFloat(guiFont[start:end], 32)
+		if err == nil && parsed > 0 {
+			return float32(parsed), true
+		}
+	}
+	return 0, false
 }
 
 // syncMetrics (re-)measures the cell grid whenever the pixel density the

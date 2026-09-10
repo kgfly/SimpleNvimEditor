@@ -62,6 +62,7 @@ cat > "build/${BUNDLE}/Contents/Info.plist" <<PLIST
       <key>CFBundleTypeExtensions</key>
       <array>
         <string>txt</string>
+        <string>json</string>
         <string>log</string>
         <string>t</string>
       </array>

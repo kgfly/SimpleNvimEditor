@@ -79,6 +79,9 @@ func TestEncodeKeyModifierCombinations(t *testing.T) {
 	}{
 		{"ctrl+letter", key.Event{Name: "A", Modifiers: key.ModCtrl, State: key.Press}, "<C-a>"},
 		{"ctrl+digit", key.Event{Name: "1", Modifiers: key.ModCtrl, State: key.Press}, "<C-1>"},
+		{"ctrl+equal", key.Event{Name: "=", Modifiers: key.ModCtrl, State: key.Press}, "<C-=>"},
+		{"ctrl+minus", key.Event{Name: "-", Modifiers: key.ModCtrl, State: key.Press}, "<C-->"},
+		{"ctrl+zero", key.Event{Name: "0", Modifiers: key.ModCtrl, State: key.Press}, "<C-0>"},
 		{"command (mac cmd) + letter", key.Event{Name: "A", Modifiers: key.ModCommand, State: key.Press}, "<D-a>"},
 		{"super (win/linux logo) + letter", key.Event{Name: "A", Modifiers: key.ModSuper, State: key.Press}, "<D-a>"},
 		{"alt + letter", key.Event{Name: "A", Modifiers: key.ModAlt, State: key.Press}, "<A-a>"},

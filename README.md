@@ -80,10 +80,8 @@ Prefer this over loosening the permissions on your home directory.
 
 ### First launch: unsigned builds
 
-Releases are **not code-signed** (that requires a paid Apple developer
-account and a Windows certificate). The binaries are fine; the OS just
-can't verify who made them, so it warns on first launch.
-And  all installation packages are built exclusively by the GitHub free tier CI/CD
+Releases are **not code-signed**, where signing requires a paid Apple developer
+account and a Windows certificate. All installation packages are built exclusively by the GitHub CI/CD
 pipeline.
 
 - **macOS** — right-click the app and choose *Open*, or:

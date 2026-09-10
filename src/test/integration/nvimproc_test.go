@@ -130,6 +130,37 @@ func TestSpawnAttachesAndRendersFileContent(t *testing.T) {
 	waitForLine(t, proc, s, "hello integration test")
 }
 
+func TestGuiFontOptionChangeReachesUIState(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "guifont.txt")
+	if err := os.WriteFile(file, []byte("font test\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	proc := spawnIsolated(t, file, 40, 10)
+	state := uistate.New()
+	const want = "monospace:h19"
+	if err := proc.Nvim.Command("set guifont=" + want); err != nil {
+		t.Fatalf("set guifont: %v", err)
+	}
+
+	deadline := time.After(drainTimeout)
+	for state.GuiFont() != want {
+		select {
+		case batch, ok := <-proc.Redraw:
+			if !ok {
+				t.Fatal("Nvim redraw stream closed before guifont update arrived")
+			}
+			needsFrame := state.Apply(batch)
+			if state.GuiFont() == want && !needsFrame {
+				t.Fatal("guifont update did not request a frame")
+			}
+		case <-deadline:
+			t.Fatalf("timed out after %s waiting for guifont %q; got %q", drainTimeout, want, state.GuiFont())
+		}
+	}
+}
+
 func TestInputIsReflectedInBothOurGridAndRealNvimBuffer(t *testing.T) {
 	dir := t.TempDir()
 	file := filepath.Join(dir, "edit.txt")
