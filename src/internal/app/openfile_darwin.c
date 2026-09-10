@@ -1,7 +1,11 @@
 // Apple Event handler for Finder's "open document" ('odoc') event.
 //
-// This lives in a real .m file rather than in the cgo preamble of
-// openfile_darwin.go. A preamble is textually prepended to *every* C
+// This file contains Objective-C and is compiled as such by the package's
+// -x objective-c CFLAGS. Keeping the .c extension prevents cgo from adding
+// another -lobjc when Gio already supplies the Objective-C runtime.
+//
+// This lives in a separate translation unit rather than in the cgo preamble
+// of openfile_darwin.go. A preamble is textually prepended to *every* C
 // translation unit cgo generates for that package, so any function or ObjC
 // class *defined* (not merely declared) there is compiled more than once and
 // the link fails with duplicate symbols:
@@ -11,7 +15,7 @@
 //
 // That is guaranteed to happen once the same file also uses //export, because
 // cgo then emits an extra translation unit for the exported thunks. The rule
-// is: preambles declare, .m/.c files define.
+// is: preambles declare, separate translation units define.
 
 #import <Cocoa/Cocoa.h>
 

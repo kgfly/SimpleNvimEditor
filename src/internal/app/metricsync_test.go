@@ -119,3 +119,35 @@ func TestGridResizesAfterScaleChange(t *testing.T) {
 			windowPx, cols1x, cols2x)
 	}
 }
+
+func TestGuiFontSizeInvalidatesMetrics(t *testing.T) {
+	a := newMeasuredApp()
+	var ops op.Ops
+	a.syncMetrics(frameAt(&ops, 1))
+	before := a.fonts.Metrics
+
+	a.syncGuiFont("Hack Nerd Font Mono:h18:b")
+	if got, want := a.fonts.Size, unit.Sp(18); got != want {
+		t.Fatalf("font size = %v, want %v", got, want)
+	}
+	if a.fonts.Metrics.CellWidth != 0 || a.fonts.Metrics.CellHeight != 0 {
+		t.Fatalf("metrics were not invalidated: %+v", a.fonts.Metrics)
+	}
+
+	a.syncMetrics(frameAt(&ops, 1))
+	if a.fonts.Metrics.CellWidth <= before.CellWidth || a.fonts.Metrics.CellHeight <= before.CellHeight {
+		t.Errorf("cells did not grow after guifont update: before=%+v after=%+v", before, a.fonts.Metrics)
+	}
+}
+
+func TestGuiFontSizeIgnoresInvalidValues(t *testing.T) {
+	a := newMeasuredApp()
+	want := a.fonts.Size
+
+	for _, guiFont := range []string{"", "Hack Nerd Font Mono", "Hack Nerd Font Mono:h0:b", "Hack Nerd Font Mono:hnope:b"} {
+		a.syncGuiFont(guiFont)
+		if a.fonts.Size != want {
+			t.Errorf("syncGuiFont(%q) changed size to %v, want %v", guiFont, a.fonts.Size, want)
+		}
+	}
+}

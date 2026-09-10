@@ -6,7 +6,7 @@ package editorapp
 #cgo CFLAGS: -x objective-c -fmodules -fobjc-arc
 #cgo LDFLAGS: -framework Cocoa
 
-// Declarations only. The implementation lives in openfile_darwin.m --
+// Declarations only. The implementation lives in openfile_darwin.c --
 // this preamble is prepended to every translation unit cgo generates for
 // the package, so defining the class or function here would compile them
 // more than once and fail the link with duplicate symbols.
