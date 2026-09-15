@@ -210,7 +210,7 @@ func TestFrameUnderlinesHoveredLinkRange(t *testing.T) {
 	underlined := rasterize(t, px, func(gtx layout.Context) {
 		Frame(gtx, fonts, snap, hover)
 	})
-	y := min(fonts.Metrics.Baseline+1, fonts.Metrics.CellHeight-1)
+	y := min(fonts.Metrics.CellHeight-fonts.Metrics.Baseline+1, fonts.Metrics.CellHeight-1)
 	for col := hover.StartCol; col < hover.EndCol; col++ {
 		x := col*fonts.Metrics.CellWidth + fonts.Metrics.CellWidth/2
 		if underlined.RGBAAt(x, y) == plain.RGBAAt(x, y) {
@@ -220,6 +220,12 @@ func TestFrameUnderlinesHoveredLinkRange(t *testing.T) {
 	x := fonts.Metrics.CellWidth / 2
 	if underlined.RGBAAt(x, y) != plain.RGBAAt(x, y) {
 		t.Error("hover changed a pixel outside the link range")
+	}
+
+	overlineY := min(fonts.Metrics.Baseline+1, fonts.Metrics.CellHeight-1)
+	x = hover.StartCol*fonts.Metrics.CellWidth + fonts.Metrics.CellWidth/2
+	if overlineY != y && underlined.RGBAAt(x, overlineY) != plain.RGBAAt(x, overlineY) {
+		t.Error("hover drew a line above the text")
 	}
 }
 

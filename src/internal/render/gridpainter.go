@@ -99,7 +99,11 @@ func drawHoverUnderline(gtx layout.Context, metrics Metrics, hv uistate.Highligh
 	if start >= end {
 		return
 	}
-	y := origin.Y + hover.Row*metrics.CellHeight + min(metrics.Baseline+1, metrics.CellHeight-1)
+	// Gio's Dimensions.Baseline is measured up from the bottom edge, not
+	// down from the top. Convert it to a top-relative baseline before
+	// placing the stroke one pixel into the descent area.
+	baseline := metrics.CellHeight - metrics.Baseline
+	y := origin.Y + hover.Row*metrics.CellHeight + min(baseline+1, metrics.CellHeight-1)
 	bottom := origin.Y + (hover.Row+1)*metrics.CellHeight
 	thickness := max(1, metrics.CellHeight/16)
 	for col := start; col < end; col++ {
