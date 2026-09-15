@@ -12,10 +12,16 @@ import (
 	"gioui.org/io/key"
 	"gioui.org/io/pointer"
 
+	"github.com/kgfly/SimpleNvimEditor/internal/render"
 	"github.com/kgfly/SimpleNvimEditor/internal/uistate"
 )
 
 var visibleURLPattern = regexp.MustCompile(`(?i)https?://[A-Z0-9._~%!$&()*+,;=:@/?#\[\]-]+`)
+
+type visibleLink struct {
+	target           string
+	startCol, endCol int
+}
 
 func (a *App) handleLinkPointer(e pointer.Event, modifiers key.Modifiers, snap uistate.Snapshot, grid, row, col int) bool {
 	if a.linkPress {
@@ -63,8 +69,13 @@ func linkModifierHeld(goos string, modifiers key.Modifiers) bool {
 }
 
 func urlAt(grid uistate.GridView, row, col int) (string, bool) {
+	link, ok := linkAt(grid, row, col)
+	return link.target, ok
+}
+
+func linkAt(grid uistate.GridView, row, col int) (visibleLink, bool) {
 	if row < 0 || row >= len(grid.Data) || col < 0 || col >= len(grid.Data[row]) {
-		return "", false
+		return visibleLink{}, false
 	}
 
 	var text strings.Builder
@@ -88,15 +99,59 @@ func urlAt(grid uistate.GridView, row, col int) (string, bool) {
 			(!strings.EqualFold(parsed.Scheme, "http") && !strings.EqualFold(parsed.Scheme, "https")) {
 			continue
 		}
-		return target, true
+		return visibleLink{
+			target:   target,
+			startCol: byteColumns[match[0]],
+			endCol:   byteColumns[end-1] + 1,
+		}, true
 	}
-	return "", false
+	return visibleLink{}, false
+}
+
+func (a *App) hoveredLink(snap uistate.Snapshot) render.HoverLink {
+	if !a.hovering {
+		return render.HoverLink{}
+	}
+	grid, row, col := 1, a.hoverRow, a.hoverCol
+	if hitGrid, hitRow, hitCol, ok := uistate.HitTest(snap.Windows, row, col); ok {
+		grid, row, col = hitGrid, hitRow, hitCol
+	}
+	gridView, ok := snap.Grids[grid]
+	if !ok {
+		return render.HoverLink{}
+	}
+	link, ok := linkAt(gridView, row, col)
+	if !ok {
+		return render.HoverLink{}
+	}
+	return render.HoverLink{
+		Active:   true,
+		GridID:   grid,
+		Row:      row,
+		StartCol: link.startCol,
+		EndCol:   link.endCol,
+	}
 }
 
 func openExternalURL(target string) error {
+	return openExternalURLFor(runtime.GOOS, target, startExternalCommand)
+}
+
+func openExternalURLFor(goos, target string, start func(string, ...string) error) error {
+	command, args, err := externalURLCommand(goos, target)
+	if err != nil {
+		return err
+	}
+	if err := start(command, args...); err != nil {
+		return fmt.Errorf("start %s: %w", command, err)
+	}
+	return nil
+}
+
+func externalURLCommand(goos, target string) (string, []string, error) {
 	var command string
 	var args []string
-	switch runtime.GOOS {
+	switch goos {
 	case "darwin":
 		command, args = "open", []string{target}
 	case "linux":
@@ -104,15 +159,18 @@ func openExternalURL(target string) error {
 	case "windows":
 		command, args = "rundll32", []string{"url.dll,FileProtocolHandler", target}
 	default:
-		return fmt.Errorf("opening URLs is unsupported on %s", runtime.GOOS)
+		return "", nil, fmt.Errorf("opening URLs is unsupported on %s", goos)
 	}
+	return command, args, nil
+}
 
+func startExternalCommand(command string, args ...string) error {
 	cmd := exec.Command(command, args...)
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("start %s: %w", command, err)
+		return err
 	}
 	if err := cmd.Process.Release(); err != nil {
-		return fmt.Errorf("release %s process: %w", command, err)
+		return fmt.Errorf("release process: %w", err)
 	}
 	return nil
 }

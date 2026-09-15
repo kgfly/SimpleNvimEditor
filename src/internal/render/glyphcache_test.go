@@ -194,6 +194,35 @@ func TestFrameIsDeterministic(t *testing.T) {
 	}
 }
 
+func TestFrameUnderlinesHoveredLinkRange(t *testing.T) {
+	px := image.Pt(200, 60)
+	fonts := testFonts(t, 1, px)
+	state := uistate.New()
+	state.Apply([][]interface{}{
+		{"grid_resize", []interface{}{1, 10, 2}},
+	})
+	snap := state.Snapshot()
+	hover := HoverLink{Active: true, GridID: 1, Row: 0, StartCol: 2, EndCol: 5}
+
+	plain := rasterize(t, px, func(gtx layout.Context) {
+		Frame(gtx, fonts, snap)
+	})
+	underlined := rasterize(t, px, func(gtx layout.Context) {
+		Frame(gtx, fonts, snap, hover)
+	})
+	y := min(fonts.Metrics.Baseline+1, fonts.Metrics.CellHeight-1)
+	for col := hover.StartCol; col < hover.EndCol; col++ {
+		x := col*fonts.Metrics.CellWidth + fonts.Metrics.CellWidth/2
+		if underlined.RGBAAt(x, y) == plain.RGBAAt(x, y) {
+			t.Errorf("hover did not change underline pixel in column %d", col)
+		}
+	}
+	x := fonts.Metrics.CellWidth / 2
+	if underlined.RGBAAt(x, y) != plain.RGBAAt(x, y) {
+		t.Error("hover changed a pixel outside the link range")
+	}
+}
+
 // TestFrameRendersAtEitherDisplayDensity is the cross-monitor regression
 // test. A low-DPI panel has smaller cells and therefore *more* of them for
 // the same physical screen, which is exactly the case where the per-cell

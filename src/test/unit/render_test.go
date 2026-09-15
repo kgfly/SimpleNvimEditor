@@ -142,7 +142,7 @@ func testFonts(t *testing.T) render.Fonts {
 // practical to assert against directly (see IMPLEMENTATION_PLAN in the
 // project history for why pixel-level assertions are out of scope for unit
 // tests), so this is our regression guard against nil-pointer/index panics.
-func runFrame(t *testing.T, snap uistate.Snapshot) {
+func runFrame(t *testing.T, snap uistate.Snapshot, hovered ...render.HoverLink) {
 	t.Helper()
 	defer func() {
 		if r := recover(); r != nil {
@@ -151,7 +151,7 @@ func runFrame(t *testing.T, snap uistate.Snapshot) {
 	}()
 	var ops op.Ops
 	gtx := newTestContext(&ops, image.Pt(400, 300))
-	render.Frame(gtx, testFonts(t), snap)
+	render.Frame(gtx, testFonts(t), snap, hovered...)
 }
 
 func TestFrameEmptyState(t *testing.T) {
@@ -166,6 +166,17 @@ func TestFrameSingleGridWithContent(t *testing.T) {
 		{"grid_cursor_goto", []interface{}{1, 0, 0}},
 	})
 	runFrame(t, s.Snapshot())
+}
+
+func TestFrameHoveredLinkRange(t *testing.T) {
+	s := uistate.New()
+	s.Apply([][]interface{}{
+		{"grid_resize", []interface{}{1, 30, 2}},
+		{"grid_line", []interface{}{1, 0, 0, []interface{}{[]interface{}{"https://example.com"}}}},
+	})
+	snap := s.Snapshot()
+	runFrame(t, snap, render.HoverLink{Active: true, GridID: 1, Row: 0, StartCol: 0, EndCol: 19})
+	runFrame(t, snap, render.HoverLink{Active: true, GridID: 1, Row: 0, StartCol: 4, EndCol: 4})
 }
 
 func TestFrameMultigridWithFloat(t *testing.T) {

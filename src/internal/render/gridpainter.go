@@ -12,19 +12,33 @@ import (
 	"github.com/kgfly/SimpleNvimEditor/internal/uistate"
 )
 
+// HoverLink identifies a visible URL cell range to decorate for the current
+// frame. EndCol is exclusive.
+type HoverLink struct {
+	Active   bool
+	GridID   int
+	Row      int
+	StartCol int
+	EndCol   int
+}
+
 // Frame draws one full frame of the editor: the base grid, every placed
 // split/float grid on top of it, and finally the cursor.
-func Frame(gtx layout.Context, fonts Fonts, snap uistate.Snapshot) {
+func Frame(gtx layout.Context, fonts Fonts, snap uistate.Snapshot, hovered ...HoverLink) {
 	defFg, defBg := snap.Highlight.DefaultColors()
 	size := gtx.Constraints.Max
 	paint.FillShape(gtx.Ops, defBg, clip.Rect(image.Rect(0, 0, size.X, size.Y)).Op())
+	var hover HoverLink
+	if len(hovered) > 0 {
+		hover = hovered[0]
+	}
 
 	// One cache per frame, shared by every grid: splits and floats draw
 	// the same characters as the base grid, so they hit the same entries.
 	glyphs := newGlyphCache(gtx, fonts)
 
 	if base, ok := snap.Grids[1]; ok {
-		drawGrid(gtx, fonts, glyphs, snap.Highlight, base, image.Pt(0, 0))
+		drawGrid(gtx, fonts, glyphs, snap.Highlight, base, image.Pt(0, 0), hover)
 	}
 	for _, p := range snap.Windows {
 		gv, ok := snap.Grids[p.GridID]
@@ -32,7 +46,7 @@ func Frame(gtx layout.Context, fonts Fonts, snap uistate.Snapshot) {
 			continue
 		}
 		origin := image.Pt(p.Col*fonts.Metrics.CellWidth, p.Row*fonts.Metrics.CellHeight)
-		drawGrid(gtx, fonts, glyphs, snap.Highlight, gv, origin)
+		drawGrid(gtx, fonts, glyphs, snap.Highlight, gv, origin, hover)
 	}
 
 	drawCursor(gtx, fonts, snap, defFg)
@@ -41,7 +55,7 @@ func Frame(gtx layout.Context, fonts Fonts, snap uistate.Snapshot) {
 // drawGrid paints every row of gv, offset by origin pixels. Cells are
 // grouped into same-highlight runs for the background fill, but glyphs are
 // drawn one cell at a time so text stays locked to the grid.
-func drawGrid(gtx layout.Context, fonts Fonts, glyphs *glyphCache, hv uistate.HighlightView, gv uistate.GridView, origin image.Point) {
+func drawGrid(gtx layout.Context, fonts Fonts, glyphs *glyphCache, hv uistate.HighlightView, gv uistate.GridView, origin image.Point, hover HoverLink) {
 	cw, ch := fonts.Metrics.CellWidth, fonts.Metrics.CellHeight
 	for row, cells := range gv.Data {
 		y := origin.Y + row*ch
@@ -73,6 +87,25 @@ func drawGrid(gtx layout.Context, fonts Fonts, glyphs *glyphCache, hv uistate.Hi
 				drawText(gtx, glyphs, x+i*cw, y, cell.Text, fg)
 			}
 		}
+		if hover.Active && hover.GridID == gv.ID && hover.Row == row {
+			drawHoverUnderline(gtx, fonts.Metrics, hv, cells, origin, hover)
+		}
+	}
+}
+
+func drawHoverUnderline(gtx layout.Context, metrics Metrics, hv uistate.HighlightView, cells []uistate.Cell, origin image.Point, hover HoverLink) {
+	start := max(0, hover.StartCol)
+	end := min(len(cells), hover.EndCol)
+	if start >= end {
+		return
+	}
+	y := origin.Y + hover.Row*metrics.CellHeight + min(metrics.Baseline+1, metrics.CellHeight-1)
+	bottom := origin.Y + (hover.Row+1)*metrics.CellHeight
+	thickness := max(1, metrics.CellHeight/16)
+	for col := start; col < end; col++ {
+		fg, _ := hv.Resolve(cells[col].HlID)
+		x := origin.X + col*metrics.CellWidth
+		paint.FillShape(gtx.Ops, fg, clip.Rect(image.Rect(x, y, x+metrics.CellWidth, min(y+thickness, bottom))).Op())
 	}
 }
 
