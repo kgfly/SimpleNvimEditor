@@ -81,6 +81,16 @@ type App struct {
 	// and silently drops every release — leaving Nvim stuck in
 	// mouse-held state.
 	mouseBtn string
+
+	// linkPress records that a modified primary-button press was consumed
+	// to open a URL, so its drag/release events do not reach Nvim alone.
+	linkPress bool
+	openURL   func(string) error
+
+	// hoverRow/hoverCol retain the pointer's base-grid cell so the hovered
+	// URL can be resolved again after every Nvim redraw.
+	hoverRow, hoverCol int
+	hovering           bool
 }
 
 // Options controls how the editor window starts.
@@ -97,6 +107,7 @@ func New(cfg config.Config, nvimArgs []string, options Options) *App {
 		state:    uistate.New(),
 		ime:      newIMEShadow(),
 		policy:   cfg.Editor.InputPolicy(),
+		openURL:  openExternalURL,
 	}
 }
 
@@ -156,7 +167,7 @@ func (a *App) layout(gtx layout.Context) {
 		}
 	}
 
-	render.Frame(gtx, a.fonts, snap)
+	render.Frame(gtx, a.fonts, snap, a.hoveredLink(snap))
 }
 
 func (a *App) syncGuiFont(guiFont string) {
@@ -232,7 +243,7 @@ func InputFilters(tag event.Tag) []event.Filter {
 		key.Filter{Focus: tag, Name: key.NameTab, Optional: anyModifier},
 		pointer.Filter{
 			Target:  tag,
-			Kinds:   pointer.Press | pointer.Release | pointer.Drag | pointer.Scroll,
+			Kinds:   pointer.Press | pointer.Release | pointer.Drag | pointer.Move | pointer.Leave | pointer.Scroll,
 			ScrollX: bigScroll,
 			ScrollY: bigScroll,
 		},
@@ -389,12 +400,24 @@ func (a *App) altOwnsKeyPath() bool {
 }
 
 func (a *App) onPointer(e pointer.Event) {
-	if a.proc == nil || a.fonts.Metrics.CellWidth == 0 {
+	if e.Kind == pointer.Leave {
+		a.hovering = false
+		return
+	}
+	if a.fonts.Metrics.CellWidth == 0 {
 		return
 	}
 	col := int(e.Position.X) / a.fonts.Metrics.CellWidth
 	row := int(e.Position.Y) / a.fonts.Metrics.CellHeight
-	mods := input.ModifierPrefix(a.mods.Modifiers(e.Modifiers))
+	if e.Kind == pointer.Move {
+		a.hoverRow, a.hoverCol = row, col
+		a.hovering = true
+	}
+	if a.proc == nil {
+		return
+	}
+	modifiers := a.mods.Modifiers(e.Modifiers)
+	mods := input.ModifierPrefix(modifiers)
 
 	// With ext_multigrid, editor content lives on grids 2+ placed via
 	// win_pos, not on grid 1 (which is just chrome). Hit-test against
@@ -404,6 +427,9 @@ func (a *App) onPointer(e pointer.Event) {
 	grid, gridRow, gridCol := 1, row, col
 	if g, gr, gc, ok := uistate.HitTest(snap.Windows, row, col); ok {
 		grid, gridRow, gridCol = g, gr, gc
+	}
+	if a.handleLinkPointer(e, modifiers, snap, grid, gridRow, gridCol) {
+		return
 	}
 
 	if e.Kind == pointer.Scroll {
