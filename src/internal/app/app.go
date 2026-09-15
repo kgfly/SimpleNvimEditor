@@ -81,6 +81,11 @@ type App struct {
 	// and silently drops every release — leaving Nvim stuck in
 	// mouse-held state.
 	mouseBtn string
+
+	// linkPress records that a modified primary-button press was consumed
+	// to open a URL, so its drag/release events do not reach Nvim alone.
+	linkPress bool
+	openURL   func(string) error
 }
 
 // Options controls how the editor window starts.
@@ -97,6 +102,7 @@ func New(cfg config.Config, nvimArgs []string, options Options) *App {
 		state:    uistate.New(),
 		ime:      newIMEShadow(),
 		policy:   cfg.Editor.InputPolicy(),
+		openURL:  openExternalURL,
 	}
 }
 
@@ -394,7 +400,8 @@ func (a *App) onPointer(e pointer.Event) {
 	}
 	col := int(e.Position.X) / a.fonts.Metrics.CellWidth
 	row := int(e.Position.Y) / a.fonts.Metrics.CellHeight
-	mods := input.ModifierPrefix(a.mods.Modifiers(e.Modifiers))
+	modifiers := a.mods.Modifiers(e.Modifiers)
+	mods := input.ModifierPrefix(modifiers)
 
 	// With ext_multigrid, editor content lives on grids 2+ placed via
 	// win_pos, not on grid 1 (which is just chrome). Hit-test against
@@ -404,6 +411,9 @@ func (a *App) onPointer(e pointer.Event) {
 	grid, gridRow, gridCol := 1, row, col
 	if g, gr, gc, ok := uistate.HitTest(snap.Windows, row, col); ok {
 		grid, gridRow, gridCol = g, gr, gc
+	}
+	if a.handleLinkPointer(e, modifiers, snap, grid, gridRow, gridCol) {
+		return
 	}
 
 	if e.Kind == pointer.Scroll {

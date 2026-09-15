@@ -29,6 +29,8 @@ There are surprisingly few candidates that meet that bar.
 - Cursor shape (block/beam/underline) synced live from Nvim's mode info.
 - Keyboard and mouse input, including scroll wheel, mapped faithfully to
   Nvim's own input protocol.
+- Open visible HTTP and HTTPS links in the default browser with Cmd-click on
+  macOS or Ctrl-click on Linux and Windows.
 - Live window resizing.
 - A small, plain `config.toml` for font and Nvim-launch settings.
 - Nerd Font support.
