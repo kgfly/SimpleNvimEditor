@@ -7,12 +7,24 @@ import (
 	"gioui.org/io/event"
 	"gioui.org/io/input"
 	"gioui.org/io/key"
+	"gioui.org/io/transfer"
 	"gioui.org/op"
 	"gioui.org/op/clip"
 
 	appkg "github.com/kgfly/SimpleNvimEditor/internal/app"
 	inputpkg "github.com/kgfly/SimpleNvimEditor/internal/input"
 )
+
+func TestInputFiltersAcceptFileDrops(t *testing.T) {
+	tag := new(int)
+	for _, filter := range appkg.InputFilters(tag) {
+		if target, ok := filter.(transfer.TargetFilter); ok &&
+			target.Target == tag && target.Type == "text/uri-list" {
+			return
+		}
+	}
+	t.Fatal("InputFilters() does not accept text/uri-list file drops")
+}
 
 // deliverKey pushes one key event through a real Gio input.Router using the
 // exact filters production registers, and reports the event the app would

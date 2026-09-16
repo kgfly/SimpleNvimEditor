@@ -16,6 +16,7 @@ import (
 	"gioui.org/io/key"
 	"gioui.org/io/pointer"
 	"gioui.org/io/system"
+	"gioui.org/io/transfer"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -115,6 +116,8 @@ func New(cfg config.Config, nvimArgs []string, options Options) *App {
 // calling goroutine, matching Gio's own convention (see gioui.org/app doc).
 func (a *App) Run(win *gioapp.Window) error {
 	a.win = win
+	setOpenFileWake(win.Invalidate)
+	defer setOpenFileWake(nil)
 	windowOptions := []gioapp.Option{gioapp.Size(unit.Dp(1000), unit.Dp(650))}
 	if a.options.Maximized {
 		windowOptions = append(windowOptions, gioapp.Maximized.Option())
@@ -134,6 +137,7 @@ func (a *App) Run(win *gioapp.Window) error {
 		case gioapp.ViewEvent:
 			a.view = e
 			setWindowIcon(e, icon)
+			installDropTarget(e)
 		case gioapp.DestroyEvent:
 			a.quit()
 			return e.Err
@@ -247,6 +251,7 @@ func InputFilters(tag event.Tag) []event.Filter {
 			ScrollX: bigScroll,
 			ScrollY: bigScroll,
 		},
+		transfer.TargetFilter{Target: tag, Type: "text/uri-list"},
 	}
 }
 
@@ -297,6 +302,8 @@ func (a *App) handleInput(gtx layout.Context) {
 			a.ime.setComposing(key.Range(ev))
 		case pointer.Event:
 			a.onPointer(ev)
+		case transfer.DataEvent:
+			a.onDrop(ev)
 		}
 	}
 
@@ -306,6 +313,15 @@ func (a *App) handleInput(gtx layout.Context) {
 	// which is exactly what made voice dictation appear to do nothing.
 	a.ime.trimIfIdle()
 	a.ime.sync(gtx, rootTag, a.caret(), image.Rectangle{})
+}
+
+func (a *App) onDrop(e transfer.DataEvent) {
+	data := e.Open()
+	if data == nil {
+		return
+	}
+	defer data.Close()
+	queueDroppedURIList(data)
 }
 
 // caret reports where Nvim's cursor is in window pixels, so macOS can place
