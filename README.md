@@ -29,7 +29,7 @@ There are surprisingly few candidates that meet that bar.
 - Cursor shape (block/beam/underline) synced live from Nvim's mode info.
 - Keyboard and mouse input, including scroll wheel, mapped faithfully to
   Nvim's own input protocol.
-- Voice dictation support.
+- Voice dictation input support.
 - Open one or more files by dragging them from the desktop file manager into
   the editor window.
 - Open visible HTTP and HTTPS links in the default browser with Cmd-click on
