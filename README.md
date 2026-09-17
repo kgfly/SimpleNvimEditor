@@ -22,8 +22,8 @@ There are surprisingly few candidates that meet that bar.
 
 - **It's just Neovim.** A GUI shell around a real `nvim` process
   (`nvim_ui_attach`), not a fork or reimplementation of the editor.
-- Native window rendering via Gio — no Electron, no embedded browser.
 - Cross-platform: Linux, macOS, and Windows.
+- Native window rendering via Gio — no Electron, no embedded browser.
 - Multigrid-aware rendering — window splits and floating windows (like
   completion popups) are drawn wherever Nvim actually places them.
 - Cursor shape (block/beam/underline) synced live from Nvim's mode info.
@@ -39,7 +39,6 @@ There are surprisingly few candidates that meet that bar.
 - GPU rendering from Go/Gio.
 - Can serve as a terminal with `simplenvim --maximized -- -c term -c startinsert`,
   so you do not need separate terminal software.
-- Use drag/drop to open files.
 
 Simple and pure: no bloat, no bundled plugin marketplace, and no telemetry.
 
