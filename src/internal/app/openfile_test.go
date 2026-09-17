@@ -5,6 +5,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // resetPendingOpens clears global queue state so tests don't leak into
@@ -50,15 +51,26 @@ func TestQueueOpenFileIgnoresEmpty(t *testing.T) {
 	}
 }
 
+// TestQueueOpenFileWakesEventLoop is the regression test for the freeze on
+// dropping a file onto the macOS window. The wake is Gio's
+// Window.Invalidate, which may only be called off the platform's UI
+// thread; running it inline on the thread that delivered the drop makes
+// Gio re-enter a lock it is already holding and hangs the app forever.
+//
+// A wake that blocks until this goroutine receives from it proves the
+// point: if queueOpenFile ever calls it inline again, the send has no
+// reader and the test deadlocks instead of quietly passing.
 func TestQueueOpenFileWakesEventLoop(t *testing.T) {
 	resetPendingOpens(t)
 
-	woken := 0
-	setOpenFileWake(func() { woken++ })
+	woken := make(chan struct{})
+	setOpenFileWake(func() { woken <- struct{}{} })
 	queueOpenFile("/tmp/dropped.txt")
 
-	if woken != 1 {
-		t.Errorf("wake called %d times, want 1", woken)
+	select {
+	case <-woken:
+	case <-time.After(5 * time.Second):
+		t.Fatal("wake was never called")
 	}
 }
 

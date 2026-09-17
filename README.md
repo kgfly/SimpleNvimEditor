@@ -39,6 +39,7 @@ There are surprisingly few candidates that meet that bar.
 - GPU rendering from Go/Gio.
 - Can serve as a terminal with `simplenvim --maximized -- -c term -c startinsert`,
   so you do not need separate terminal software.
+- File drag/drop open.
 
 Simple and pure: no bloat, no bundled plugin marketplace, and no telemetry.
 
