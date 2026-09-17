@@ -18,9 +18,65 @@
 // is: preambles declare, separate translation units define.
 
 #import <Cocoa/Cocoa.h>
+#import <objc/runtime.h>
 
 // Implemented in Go (openfile_darwin.go, //export snv_onOpenFile).
 void snv_onOpenFile(char *path);
+
+static NSDragOperation snv_dragging_entered(id self, SEL command,
+                                             id<NSDraggingInfo> sender) {
+    NSPasteboard *pasteboard = [sender draggingPasteboard];
+    if ([pasteboard canReadObjectForClasses:@[[NSURL class]]
+                                    options:@{NSPasteboardURLReadingFileURLsOnlyKey: @YES}]) {
+        return NSDragOperationCopy;
+    }
+    return NSDragOperationNone;
+}
+
+static BOOL snv_perform_drag_operation(id self, SEL command,
+                                        id<NSDraggingInfo> sender) {
+    NSPasteboard *pasteboard = [sender draggingPasteboard];
+    NSArray<NSURL *> *urls = [pasteboard
+        readObjectsForClasses:@[[NSURL class]]
+                      options:@{NSPasteboardURLReadingFileURLsOnlyKey: @YES}];
+    BOOL opened = NO;
+    for (NSURL *url in urls) {
+        NSString *path = [url path];
+        if (path != nil) {
+            snv_onOpenFile((char *)[path UTF8String]);
+            opened = YES;
+        }
+    }
+    return opened;
+}
+
+void snv_install_drop_target(uintptr_t viewPointer) {
+    NSView *view = (__bridge NSView *)(void *)viewPointer;
+    if (view == nil) {
+        return;
+    }
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        static Class dropViewClass = Nil;
+        if (dropViewClass == Nil) {
+            Class gioViewClass = object_getClass(view);
+            dropViewClass = objc_allocateClassPair(gioViewClass,
+                                                    "SNVDropView", 0);
+            if (dropViewClass != Nil) {
+                class_addMethod(dropViewClass, @selector(draggingEntered:),
+                                (IMP)snv_dragging_entered, "Q@:@");
+                class_addMethod(dropViewClass,
+                                @selector(performDragOperation:),
+                                (IMP)snv_perform_drag_operation, "B@:@");
+                objc_registerClassPair(dropViewClass);
+            }
+        }
+        if (dropViewClass != Nil && object_getClass(view) != dropViewClass) {
+            object_setClass(view, dropViewClass);
+        }
+        [view registerForDraggedTypes:@[NSPasteboardTypeFileURL]];
+    });
+}
 
 // SNVOpenFileHandler receives the 'odoc' (kAEOpenDocuments) Apple Event,
 // which is what Finder sends when a file is opened with this app.

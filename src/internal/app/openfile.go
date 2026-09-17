@@ -1,6 +1,13 @@
 package editorapp
 
-import "sync"
+import (
+	"bufio"
+	"io"
+	"net/url"
+	"runtime"
+	"strings"
+	"sync"
+)
 
 // pendingOpens holds file paths the desktop environment has asked us to
 // open, until the editor is ready to act on them.
@@ -17,6 +24,7 @@ import "sync"
 var pendingOpens = struct {
 	mu    sync.Mutex
 	paths []string
+	wake  func()
 }{}
 
 // queueOpenFile records a path to be opened as soon as the editor can.
@@ -26,8 +34,58 @@ func queueOpenFile(path string) {
 		return
 	}
 	pendingOpens.mu.Lock()
-	defer pendingOpens.mu.Unlock()
 	pendingOpens.paths = append(pendingOpens.paths, path)
+	wake := pendingOpens.wake
+	pendingOpens.mu.Unlock()
+	if wake != nil {
+		wake()
+	}
+}
+
+func setOpenFileWake(wake func()) {
+	pendingOpens.mu.Lock()
+	pendingOpens.wake = wake
+	pendingOpens.mu.Unlock()
+}
+
+// queueDroppedURIList decodes the text/uri-list format used by X11 and
+// Wayland file managers and adds local files to the normal desktop-open
+// queue. Invalid entries and non-file URLs are ignored independently so one
+// bad item cannot discard the rest of a multi-file drop.
+func queueDroppedURIList(data io.Reader) {
+	scanner := bufio.NewScanner(io.LimitReader(data, 4<<20))
+	scanner.Buffer(make([]byte, 4096), 4<<20)
+	for scanner.Scan() {
+		line := strings.TrimSuffix(scanner.Text(), "\r")
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		fileURL, err := url.Parse(line)
+		if err != nil || !strings.EqualFold(fileURL.Scheme, "file") ||
+			fileURL.Path == "" || fileURL.User != nil ||
+			fileURL.RawQuery != "" || fileURL.Fragment != "" ||
+			strings.ContainsRune(fileURL.Path, '\x00') {
+			continue
+		}
+
+		path := fileURL.Path
+		if runtime.GOOS == "windows" {
+			if fileURL.Host != "" && fileURL.Host != "localhost" {
+				path = `\\` + fileURL.Host + strings.ReplaceAll(path, "/", `\`)
+			} else if len(path) >= 3 && path[0] == '/' && path[2] == ':' {
+				// Genuine Windows drive-letter path (e.g. /C:/Users/...):
+				// strip the leading slash and switch to backslashes.
+				path = strings.ReplaceAll(path[1:], "/", `\`)
+			}
+			// Any other path (e.g. a Unix-style /tmp/... URI) is left with
+			// forward slashes rather than being mangled into an invalid
+			// Windows path.
+		} else if fileURL.Host != "" && fileURL.Host != "localhost" {
+			continue
+		}
+
+		queueOpenFile(path)
+	}
 }
 
 // takeQueuedOpens removes and returns every queued path.

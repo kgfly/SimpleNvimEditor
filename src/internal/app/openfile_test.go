@@ -2,6 +2,7 @@ package editorapp
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -11,7 +12,11 @@ import (
 func resetPendingOpens(t *testing.T) {
 	t.Helper()
 	takeQueuedOpens()
-	t.Cleanup(func() { takeQueuedOpens() })
+	setOpenFileWake(nil)
+	t.Cleanup(func() {
+		takeQueuedOpens()
+		setOpenFileWake(nil)
+	})
 }
 
 func TestQueueOpenFileRoundTrips(t *testing.T) {
@@ -42,6 +47,35 @@ func TestQueueOpenFileIgnoresEmpty(t *testing.T) {
 	queueOpenFile("")
 	if got := takeQueuedOpens(); got != nil {
 		t.Errorf("takeQueuedOpens() = %v, want nil", got)
+	}
+}
+
+func TestQueueOpenFileWakesEventLoop(t *testing.T) {
+	resetPendingOpens(t)
+
+	woken := 0
+	setOpenFileWake(func() { woken++ })
+	queueOpenFile("/tmp/dropped.txt")
+
+	if woken != 1 {
+		t.Errorf("wake called %d times, want 1", woken)
+	}
+}
+
+func TestQueueDroppedURIList(t *testing.T) {
+	resetPendingOpens(t)
+
+	queueDroppedURIList(strings.NewReader("# Files from the desktop\r\nfile:///tmp/first%20file.txt\r\nhttps://example.com/not-a-file\r\nfile:///tmp/query.txt?ignored\r\nfile://localhost/tmp/second.txt\r\n"))
+
+	got := takeQueuedOpens()
+	want := []string{"/tmp/first file.txt", "/tmp/second.txt"}
+	if len(got) != len(want) {
+		t.Fatalf("takeQueuedOpens() = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("path %d = %q, want %q", i, got[i], want[i])
+		}
 	}
 }
 
