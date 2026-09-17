@@ -137,7 +137,13 @@ func (a *App) Run(win *gioapp.Window) error {
 		case gioapp.ViewEvent:
 			a.view = e
 			setWindowIcon(e, icon)
-			installDropTarget(e)
+			if e.Valid() {
+				// Installing the drop target hooks the native window,
+				// which has to happen on the thread that owns it: on
+				// Windows that means swapping the window procedure
+				// while its message pump is parked, not from under it.
+				win.Run(func() { installDropTarget(e) })
+			}
 		case gioapp.DestroyEvent:
 			a.quit()
 			return e.Err
