@@ -73,9 +73,13 @@ func queueDroppedURIList(data io.Reader) {
 			if fileURL.Host != "" && fileURL.Host != "localhost" {
 				path = `\\` + fileURL.Host + strings.ReplaceAll(path, "/", `\`)
 			} else if len(path) >= 3 && path[0] == '/' && path[2] == ':' {
-				path = path[1:]
+				// Genuine Windows drive-letter path (e.g. /C:/Users/...):
+				// strip the leading slash and switch to backslashes.
+				path = strings.ReplaceAll(path[1:], "/", `\`)
 			}
-			path = strings.ReplaceAll(path, "/", `\`)
+			// Any other path (e.g. a Unix-style /tmp/... URI) is left with
+			// forward slashes rather than being mangled into an invalid
+			// Windows path.
 		} else if fileURL.Host != "" && fileURL.Host != "localhost" {
 			continue
 		}
