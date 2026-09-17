@@ -1,7 +1,6 @@
-//go:build !darwin && !windows
+//go:build !darwin && !windows && !linux
 
 package editorapp
 
-// Linux file drops arrive through Gio's transfer events. Other non-desktop
-// targets have no native drop target to install.
+// Platforms without a native drop target of their own.
 func installDropTarget(_ any) {}

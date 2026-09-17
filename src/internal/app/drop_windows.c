@@ -63,6 +63,12 @@ static LRESULT CALLBACK snv_drop_wndproc(HWND hwnd, UINT message,
         snv_previous_wndproc = NULL;
     }
 
+    // CallWindowProcW faults on a null procedure, so never chain into one:
+    // Gio's own procedure is unreachable for as long as it takes
+    // snv_install_drop_target to publish it.
+    if (previous == NULL) {
+        return DefWindowProcW(hwnd, message, wParam, lParam);
+    }
     return CallWindowProcW(previous, hwnd, message, wParam, lParam);
 }
 
@@ -87,7 +93,7 @@ void snv_install_drop_target(uintptr_t windowPointer) {
         return;
     }
 
-    snv_drop_window = hwnd;
     snv_previous_wndproc = (WNDPROC)previous;
+    snv_drop_window = hwnd;
     DragAcceptFiles(hwnd, TRUE);
 }

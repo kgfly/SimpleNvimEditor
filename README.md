@@ -22,8 +22,8 @@ There are surprisingly few candidates that meet that bar.
 
 - **It's just Neovim.** A GUI shell around a real `nvim` process
   (`nvim_ui_attach`), not a fork or reimplementation of the editor.
-- Native window rendering via Gio — no Electron, no embedded browser.
 - Cross-platform: Linux, macOS, and Windows.
+- Native window rendering via Gio — no Electron, no embedded browser.
 - Multigrid-aware rendering — window splits and floating windows (like
   completion popups) are drawn wherever Nvim actually places them.
 - Cursor shape (block/beam/underline) synced live from Nvim's mode info.
@@ -85,7 +85,7 @@ Prefer this over loosening the permissions on your home directory.
 ### First launch: unsigned builds
 
 Releases are **not code-signed**, where signing requires a paid Apple developer
-account and a Windows certificate. All installation packages are built exclusively by the GitHub CI/CD
+account and a paid Windows certificate. All installation packages are built exclusively by the GitHub CI/CD
 pipeline.
 
 - **macOS** — right-click the app and choose *Open*, or:

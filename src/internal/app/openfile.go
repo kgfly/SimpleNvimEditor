@@ -38,7 +38,17 @@ func queueOpenFile(path string) {
 	wake := pendingOpens.wake
 	pendingOpens.mu.Unlock()
 	if wake != nil {
-		wake()
+		// The wake (Window.Invalidate) must not run on the thread the
+		// platform called us on. Every caller here is a native callback
+		// running on the UI thread -- AppKit's performDragOperation:,
+		// the 'odoc' Apple Event, the Win32 WM_DROPFILES wndproc -- and
+		// on macOS Gio's wakeup executes inline when it is already on
+		// the main thread. Invalidate then re-enters Window.nextEvent
+		// while still holding the lock it took on the way in, and the
+		// whole app deadlocks: the window freezes the moment a file is
+		// dropped on it. Handing the wake to another goroutine keeps
+		// Gio's "client goroutine only" contract.
+		go wake()
 	}
 }
 

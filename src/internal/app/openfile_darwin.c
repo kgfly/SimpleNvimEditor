@@ -39,15 +39,23 @@ static BOOL snv_perform_drag_operation(id self, SEL command,
     NSArray<NSURL *> *urls = [pasteboard
         readObjectsForClasses:@[[NSURL class]]
                       options:@{NSPasteboardURLReadingFileURLsOnlyKey: @YES}];
-    BOOL opened = NO;
+    NSMutableArray<NSString *> *paths = [[NSMutableArray alloc] init];
     for (NSURL *url in urls) {
         NSString *path = [url path];
         if (path != nil) {
-            snv_onOpenFile((char *)[path UTF8String]);
-            opened = YES;
+            [paths addObject:path];
         }
     }
-    return opened;
+    if ([paths count] == 0) {
+        return NO;
+    }
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        for (NSString *path in paths) {
+            snv_onOpenFile((char *)[path UTF8String]);
+        }
+    });
+    return YES;
 }
 
 void snv_install_drop_target(uintptr_t viewPointer) {
@@ -59,6 +67,10 @@ void snv_install_drop_target(uintptr_t viewPointer) {
     dispatch_async(dispatch_get_main_queue(), ^{
         static Class dropViewClass = Nil;
         if (dropViewClass == Nil) {
+            // object_getClass, not -class: once anything observes the
+            // view with KVO its isa is a hidden NSKVONotifying_ subclass
+            // that -class deliberately hides. Subclassing the reported
+            // class and then setting it would silently undo that.
             Class gioViewClass = object_getClass(view);
             dropViewClass = objc_allocateClassPair(gioViewClass,
                                                     "SNVDropView", 0);
