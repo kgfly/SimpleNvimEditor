@@ -85,7 +85,7 @@ Prefer this over loosening the permissions on your home directory.
 ### First launch: unsigned builds
 
 Releases are **not code-signed**, where signing requires a paid Apple developer
-account and a Windows certificate. All installation packages are built exclusively by the GitHub CI/CD
+account and a paid Windows certificate. All installation packages are built exclusively by the GitHub CI/CD
 pipeline.
 
 - **macOS** — right-click the app and choose *Open*, or:
