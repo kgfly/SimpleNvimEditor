@@ -8,6 +8,7 @@ import (
 	"gioui.org/io/pointer"
 
 	"github.com/kgfly/SimpleNvimEditor/internal/config"
+	"github.com/kgfly/SimpleNvimEditor/internal/render"
 )
 
 func TestAppIcon(t *testing.T) {
@@ -64,6 +65,29 @@ func TestCaretWithZeroMetrics(t *testing.T) {
 	c := a.caret()
 	if c.Ascent != 0 || c.Descent != 0 {
 		t.Fatalf("caret with zero metrics should be zero, got %+v", c)
+	}
+}
+
+func TestCaretWithMissingGrid(t *testing.T) {
+	a := New(config.Default(), nil, Options{})
+	a.fonts.Metrics = render.Metrics{CellWidth: 8, CellHeight: 16, Baseline: 12}
+
+	if got := a.caret(); got != (key.Caret{}) {
+		t.Fatalf("caret with missing grid = %+v, want zero", got)
+	}
+}
+
+func TestCaretPosition(t *testing.T) {
+	a := New(config.Default(), nil, Options{})
+	a.fonts.Metrics = render.Metrics{CellWidth: 8, CellHeight: 16, Baseline: 12}
+	a.state.Apply([][]interface{}{
+		{"grid_resize", []interface{}{1, 10, 5}},
+		{"grid_cursor_goto", []interface{}{1, 2, 3}},
+	})
+
+	got := a.caret()
+	if got.Pos.X != 24 || got.Pos.Y != 44 || got.Ascent != 12 || got.Descent != 4 {
+		t.Fatalf("caret = %+v, want position (24,44), ascent 12, descent 4", got)
 	}
 }
 
