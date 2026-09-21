@@ -238,5 +238,12 @@ func vimEscape(path string) string {
 // this client doesn't yet render Nvim's confirmation dialog specially, an
 // interactive "Save changes?" prompt will appear as normal grid text.
 func (p *Process) RequestQuit() {
-	p.cmds <- func() { _ = p.Nvim.Command("confirm qa") }
+	// Queued like any other command so it lands after the input already
+	// on its way, but run off the queue: `confirm qa` does not return
+	// until the user answers the prompt, and their answer is keyboard
+	// input that travels through this very queue. Waiting here would
+	// deadlock the editor on its own question.
+	p.cmds <- func() {
+		go func() { _ = p.Nvim.Command("confirm qa") }()
+	}
 }

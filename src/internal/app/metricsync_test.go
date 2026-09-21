@@ -9,6 +9,7 @@ import (
 	"gioui.org/unit"
 
 	"github.com/kgfly/SimpleNvimEditor/internal/config"
+	"github.com/kgfly/SimpleNvimEditor/internal/nvimproc"
 	"github.com/kgfly/SimpleNvimEditor/internal/render"
 )
 
@@ -33,6 +34,22 @@ func newMeasuredApp() *App {
 		Size:   unit.Sp(cfg.Editor.FontSize),
 	}
 	return a
+}
+
+func TestLayoutStableFrame(t *testing.T) {
+	a := newMeasuredApp()
+	var ops op.Ops
+	gtx := frameAt(&ops, 1)
+	a.syncMetrics(gtx)
+	a.cols = gtx.Constraints.Max.X / a.fonts.Metrics.CellWidth
+	a.rows = gtx.Constraints.Max.Y / a.fonts.Metrics.CellHeight
+	a.proc = new(nvimproc.Process)
+
+	a.layout(gtx)
+
+	if a.cols == 0 || a.rows == 0 {
+		t.Fatalf("layout produced invalid grid size %dx%d", a.cols, a.rows)
+	}
 }
 
 // TestMetricsFollowDisplayScale is the regression test for text becoming

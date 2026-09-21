@@ -9,8 +9,22 @@
 // Implemented in Go (drop_windows.go, //export snv_onDroppedFile).
 void snv_onDroppedFile(char *path);
 
+// Implemented in Go (close_windows.go, //export snv_onCloseRequest).
+void snv_onCloseRequest(void);
+
 static HWND snv_drop_window = NULL;
 static WNDPROC snv_previous_wndproc = NULL;
+
+// snv_close_allowed is set once the editor has decided the window really
+// should go away (Nvim exited). Until then WM_CLOSE is swallowed so that
+// Nvim can ask about unsaved buffers; without the flag the programmatic
+// close in pumpRedraw would be swallowed too and the window would never
+// shut. Set from a Go goroutine, read on the UI thread, hence interlocked.
+static volatile LONG snv_close_allowed = 0;
+
+void snv_allow_close(void) {
+    InterlockedExchange(&snv_close_allowed, 1);
+}
 
 static void snv_send_dropped_file(HDROP drop, UINT index) {
     UINT wideLength = DragQueryFileW(drop, index, NULL, 0);
@@ -53,6 +67,16 @@ static LRESULT CALLBACK snv_drop_wndproc(HWND hwnd, UINT message,
             snv_send_dropped_file(drop, index);
         }
         DragFinish(drop);
+        return 0;
+    }
+
+    // Alt+F4, the title-bar close button and the taskbar's Close all arrive
+    // as WM_CLOSE (Alt+F4 via SC_CLOSE, which DefWindowProc turns into one).
+    // Gio has no close-request event and destroys the window as soon as it
+    // sees WM_DESTROY, so cancel here and let Nvim decide instead.
+    if (message == WM_CLOSE &&
+        InterlockedCompareExchange(&snv_close_allowed, 0, 0) == 0) {
+        snv_onCloseRequest();
         return 0;
     }
 
