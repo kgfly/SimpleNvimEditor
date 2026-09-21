@@ -8,6 +8,7 @@ package editorapp
 import (
 	"image"
 	"strconv"
+	"sync"
 	"time"
 
 	gioapp "gioui.org/app"
@@ -51,6 +52,10 @@ type App struct {
 	fonts render.Fonts
 	state *uistate.State
 	proc  *nvimproc.Process
+
+	// winMu guards win, which pumpRedraw reads from its own goroutine and
+	// Run replaces when a window has to be reopened.
+	winMu sync.Mutex
 
 	cols, rows int
 	focused    bool
@@ -112,17 +117,16 @@ func New(cfg config.Config, nvimArgs []string, options Options) *App {
 	}
 }
 
-// Run drives win's event loop until the window is closed. It blocks the
+// Run drives win's event loop until the editor is done. It blocks the
 // calling goroutine, matching Gio's own convention (see gioui.org/app doc).
+//
+// A window that the platform closed while Nvim was still asking about
+// unsaved buffers is replaced rather than accepted; see quit.
 func (a *App) Run(win *gioapp.Window) error {
-	a.win = win
-	setOpenFileWake(win.Invalidate)
+	setOpenFileWake(a.invalidate)
 	defer setOpenFileWake(nil)
-	windowOptions := []gioapp.Option{gioapp.Size(unit.Dp(1000), unit.Dp(650))}
-	if a.options.Maximized {
-		windowOptions = append(windowOptions, gioapp.Maximized.Option())
-	}
-	win.Option(windowOptions...)
+	setCloseRequestWake(a.invalidate)
+	defer setCloseRequestWake(nil)
 
 	a.fonts = render.Fonts{
 		Shaper: render.NewShaper(),
@@ -131,6 +135,27 @@ func (a *App) Run(win *gioapp.Window) error {
 	}
 
 	icon := appIcon()
+	for {
+		reopen, err := a.runWindow(win, icon)
+		if !reopen {
+			return err
+		}
+		// Re-announce the title on the replacement window.
+		a.title = ""
+		win = new(gioapp.Window)
+	}
+}
+
+// runWindow drives one window to destruction and reports whether a
+// replacement is needed.
+func (a *App) runWindow(win *gioapp.Window, icon *image.RGBA) (bool, error) {
+	a.setWindow(win)
+	windowOptions := []gioapp.Option{gioapp.Size(unit.Dp(1000), unit.Dp(650))}
+	if a.options.Maximized {
+		windowOptions = append(windowOptions, gioapp.Maximized.Option())
+	}
+	win.Option(windowOptions...)
+
 	var ops op.Ops
 	for {
 		switch e := win.Event().(type) {
@@ -138,20 +163,44 @@ func (a *App) Run(win *gioapp.Window) error {
 			a.view = e
 			setWindowIcon(e, icon)
 			if e.Valid() {
-				// Installing the drop target hooks the native window,
-				// which has to happen on the thread that owns it: on
-				// Windows that means swapping the window procedure
-				// while its message pump is parked, not from under it.
-				win.Run(func() { installDropTarget(e) })
+				// Both hooks patch the native window, which has to
+				// happen on the thread that owns it: on Windows that
+				// means swapping the window procedure while its message
+				// pump is parked, not from under it.
+				win.Run(func() {
+					installDropTarget(e)
+					installCloseHandler(e)
+				})
 			}
 		case gioapp.DestroyEvent:
-			a.quit()
-			return e.Err
+			return a.quit(), e.Err
 		case gioapp.FrameEvent:
 			gtx := gioapp.NewContext(&ops, e)
 			a.layout(gtx)
 			e.Frame(gtx.Ops)
 		}
+	}
+}
+
+// setWindow publishes the window pumpRedraw should drive.
+func (a *App) setWindow(win *gioapp.Window) {
+	a.winMu.Lock()
+	a.win = win
+	a.winMu.Unlock()
+}
+
+func (a *App) window() *gioapp.Window {
+	a.winMu.Lock()
+	defer a.winMu.Unlock()
+	return a.win
+}
+
+// invalidate asks the current window for a frame. It is the wake handed to
+// the desktop-open and close-request queues, both of which fire from
+// threads that are not Gio's.
+func (a *App) invalidate() {
+	if win := a.window(); win != nil {
+		win.Invalidate()
 	}
 }
 
@@ -167,6 +216,7 @@ func (a *App) layout(gtx layout.Context) {
 	a.handleInput(gtx)
 	a.syncSize(size)
 	a.drainOpenRequests()
+	a.drainCloseRequest()
 
 	snap := a.state.Snapshot()
 	if snap.Title != a.title {
@@ -533,25 +583,41 @@ func (a *App) startNvim() {
 func (a *App) pumpRedraw() {
 	for batch := range a.proc.Redraw {
 		if a.state.Apply(batch) {
-			a.win.Invalidate()
+			a.invalidate()
 		}
 	}
 	// Nvim exited (e.g. :q, :qa, :wq) — close the Gio window so the
 	// event loop in Run returns. Without this, the window stays open
-	// and unresponsive after Nvim is gone.
-	a.win.Perform(system.ActionClose)
+	// and unresponsive after Nvim is gone. allowClose first, or the
+	// close hooks installed for Cmd+Q/Alt+F4 would veto this one too.
+	allowClose()
+	if win := a.window(); win != nil {
+		win.Perform(system.ActionClose)
+	}
 }
 
-// quit asks Nvim to exit (honoring unsaved-changes prompts) and waits a
-// short, bounded time for it to do so before letting the window close
-// anyway. See Process.RequestQuit for the documented limitation here.
-func (a *App) quit() {
+// quitGrace is how long Nvim gets to exit after being asked to. Overrunning
+// it is taken to mean Nvim is holding a "save changes?" prompt open, which
+// is a question only the user can answer — `confirm qa` does not return
+// until they do.
+const quitGrace = 500 * time.Millisecond
+
+// quit asks Nvim to exit, honoring unsaved-changes prompts, and reports
+// whether it is still running afterwards — i.e. whether the window the
+// platform just destroyed needs to come back so the prompt can be answered.
+//
+// Only X11 and Wayland get this far: macOS and Windows cancel the close
+// outright (see close_darwin.c and drop_windows.c), so there the prompt
+// appears in the window that is already on screen.
+func (a *App) quit() bool {
 	if a.proc == nil {
-		return
+		return false
 	}
 	a.proc.RequestQuit()
 	select {
 	case <-a.proc.Exited:
-	case <-time.After(500 * time.Millisecond):
+		return false
+	case <-time.After(quitGrace):
+		return true
 	}
 }

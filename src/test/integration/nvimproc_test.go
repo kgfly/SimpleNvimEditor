@@ -277,3 +277,36 @@ func TestRequestQuitExitsCleanly(t *testing.T) {
 		t.Fatalf("ServeErr = %v, want nil after a clean quit", proc.ServeErr)
 	}
 }
+
+// A modified buffer makes `confirm qa` block inside Nvim until the user
+// answers — and the answer is keystrokes, which travel through the same
+// outgoing command queue. Running the quit command on that queue therefore
+// deadlocks the editor on its own question: the prompt is drawn but nothing
+// the user types can reach Nvim.
+func TestRequestQuitPromptStillAcceptsInput(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "modified.txt")
+	if err := os.WriteFile(file, []byte("keep\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	proc := spawnIsolated(t, file, 60, 10)
+	s := uistate.New()
+	waitForLine(t, proc, s, "keep")
+
+	proc.Input("Aedited<Esc>")
+	waitForLine(t, proc, s, "keepedited")
+
+	proc.RequestQuit()
+	// Single modified buffer; the (A)ll/(D)iscard All answers only appear
+	// when there is more than one.
+	waitForLine(t, proc, s, "[Y]es, (N)o, (C)ancel:")
+
+	// (N)o: discard the change and quit.
+	proc.Input("n")
+	select {
+	case <-proc.Exited:
+	case <-time.After(drainTimeout):
+		t.Fatalf("nvim did not exit within %s of answering the prompt", drainTimeout)
+	}
+}
