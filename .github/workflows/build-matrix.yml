@@ -36,9 +36,9 @@ jobs:
           - { os: macos-latest,     goos: darwin,  goarch: arm64 }
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: src/go.mod
           cache-dependency-path: src/go.sum
@@ -110,7 +110,7 @@ jobs:
           ls -l
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: binary-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/*
