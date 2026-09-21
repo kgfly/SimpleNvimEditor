@@ -149,6 +149,14 @@ them as its own options:
 ```sh
 simplenvim --maximized -- -c term -c 'edit ~/todo.txt'
 ```
+## Versioning Rule
+v "X.Y.Z"
+
+Z: bug fix.
+
+Y: feature development.
+
+X: bumped every 10 Y.
 
 ## Reporting issues
 
@@ -158,7 +166,7 @@ you don't have to wait for a maintainer.
 
 This only works on issues **you** opened, and `/reopen` must start the comment.
 
-## Documentation
+## Developer Documentation
 
 - [`doc/developer.md`](doc/developer.md) — everything about building,
   running, testing, and contributing.

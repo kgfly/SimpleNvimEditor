@@ -27,9 +27,9 @@ jobs:
       matrix:
         goarch: [amd64, arm64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: binary-linux-${{ matrix.goarch }}
           path: incoming
@@ -74,7 +74,7 @@ jobs:
           for f in *.rpm; do mv "$f" "simplenvim_${FILE_VERSION}_linux_${ARCH}.rpm"; done
           ls -l
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: package-linux-${{ matrix.goarch }}
           path: dist/*
@@ -84,9 +84,9 @@ jobs:
     name: Windows installer
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: binary-windows-amd64
           path: incoming
@@ -109,7 +109,7 @@ jobs:
         run: |
           iscc /DMyAppVersion="${{ inputs.version }}" /DMyAppArch="amd64" packaging/windows/simplenvim.iss
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: package-windows-amd64
           path: packaging/windows/Output/*.exe
@@ -123,9 +123,9 @@ jobs:
       matrix:
         goarch: [amd64, arm64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: binary-darwin-${{ matrix.goarch }}
           path: incoming
@@ -136,7 +136,7 @@ jobs:
           ARCH: ${{ matrix.goarch }}
         run: bash packaging/macos/make-dmg.sh
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: package-darwin-${{ matrix.goarch }}
           path: dist/*.dmg
@@ -150,9 +150,9 @@ jobs:
       matrix:
         goarch: [amd64, arm64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: binary-linux-${{ matrix.goarch }}
           path: incoming
@@ -193,7 +193,7 @@ jobs:
           tar cf "../dist/simplenvim_${VERSION}_linux_${ARCH}.pkg.tar.zst" \
             --zstd .PKGINFO usr/
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: package-arch-${{ matrix.goarch }}
           path: dist/*.pkg.tar.zst
