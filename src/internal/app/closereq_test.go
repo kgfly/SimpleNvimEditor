@@ -4,7 +4,10 @@ import (
 	"testing"
 	"time"
 
+	gioapp "gioui.org/app"
+
 	"github.com/kgfly/SimpleNvimEditor/internal/config"
+	"github.com/kgfly/SimpleNvimEditor/internal/nvimproc"
 )
 
 func TestQueueCloseRequestWakesAndDrainsOnce(t *testing.T) {
@@ -47,4 +50,23 @@ func TestDrainCloseRequestWhenIdle(t *testing.T) {
 	takeCloseRequest()
 	a := New(config.Default(), nil, Options{})
 	a.drainCloseRequest()
+}
+
+func TestWindowAccessors(t *testing.T) {
+	a := New(config.Default(), nil, Options{})
+	win := new(gioapp.Window)
+	a.setWindow(win)
+	if got := a.window(); got != win {
+		t.Fatalf("window() = %p, want %p", got, win)
+	}
+}
+
+func TestPumpRedrawWithoutWindow(t *testing.T) {
+	redraw := make(chan [][]interface{}, 1)
+	redraw <- [][]interface{}{{"flush"}}
+	close(redraw)
+
+	a := New(config.Default(), nil, Options{})
+	a.proc = &nvimproc.Process{Redraw: redraw}
+	a.pumpRedraw()
 }
