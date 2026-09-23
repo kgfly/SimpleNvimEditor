@@ -2,7 +2,4 @@
 
 package editorapp
 
-import "image"
-
-func setWindowIcon(_ any, _ *image.RGBA) {}
-func setWindowTitle(_ any, _ string)     {}
+func setWindowTitle(_ any, _ string) {}

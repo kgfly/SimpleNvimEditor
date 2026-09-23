@@ -149,14 +149,49 @@ them as its own options:
 ```sh
 simplenvim --maximized -- -c term -c 'edit ~/todo.txt'
 ```
+
+## Dock and taskbar icon color
+
+When several editors are open, the dock or taskbar icon color tells them
+apart. The "S" stays the same and only the background changes:
+
+- **Blue** is the default.
+- **Green** means Neovim's first buffer is a terminal, for example
+  `simplenvim -- -c term`.
+- **Any other color** can be chosen by setting `SIMPLENVIM_BA_<COLOR>` before
+  the app starts. The value doesn't matter and the name is case-insensitive:
+
+  ```sh
+  SIMPLENVIM_BA_RED=1 simplenvim ~/prod.conf
+  ```
+
+  The available colors are `BLUE`, `GREEN`, `YELLOW`, `RED`, `ORANGE`,
+  `PURPLE`, `PINK`, `BROWN`, `BLACK`, `WHITE` and `GRAY`. The environment
+  variable overrides terminal detection. If more than one is set, the first
+  color in that list wins.
+
+Platform notes:
+
+- **macOS:** the Dock icon changes while the app runs. A pinned Dock tile
+  shows the default icon when the app isn't running.
+- **Windows:** each non-default color gets its own taskbar group.
+- **Linux:** colors other than blue need the icons and hidden `.desktop`
+  entries installed by the `.deb`, `.rpm` or Arch package, because docks and
+  panels look them up by app ID (`simplenvim-<color>`). On X11 the window icon
+  itself also changes, so window-icon taskbars such as xfce4-panel and IceWM
+  show the color even without the package. On Wayland (GNOME, labwc, and so
+  on) the icon is fixed when the window opens, so only the environment
+  variable and a `-c term` on the command line apply. A terminal opened by your
+  Neovim config doesn't change it.
+
 ## Versioning Rule
 v "X.Y.Z"
 
 Z: bug fix.
 
-Y: feature development.
+Y: normal feature update.
 
-X: bumped every 10 Y.
+X: major feature update or it gets bumped every 10 Y.
 
 ## Reporting issues
 

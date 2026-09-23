@@ -7,6 +7,7 @@ package editorapp
 
 import (
 	"image"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -62,6 +63,13 @@ type App struct {
 	title      string
 	view       any
 
+	// iconColor is the dock/taskbar icon background. Unless it came from
+	// a SIMPLENVIM_BA_* variable, Nvim's startup report may correct it
+	// through iconUpdate.
+	iconColor   string
+	iconFromEnv bool
+	iconUpdate  chan string
+
 	// metric is the pixel density the cached cell Metrics were measured
 	// at, so a move to a differently-scaled monitor can be detected; see
 	// syncMetrics.
@@ -106,14 +114,19 @@ type Options struct {
 
 // New creates an App that starts Nvim with the given arguments (may be empty).
 func New(cfg config.Config, nvimArgs []string, options Options) *App {
+	allArgs := append(append([]string(nil), cfg.Nvim.ExtraArgs...), nvimArgs...)
+	iconColor, iconFromEnv := startupIconColor(os.Environ(), allArgs)
 	return &App{
-		cfg:      cfg,
-		nvimArgs: append([]string(nil), nvimArgs...),
-		options:  options,
-		state:    uistate.New(),
-		ime:      newIMEShadow(),
-		policy:   cfg.Editor.InputPolicy(),
-		openURL:  openExternalURL,
+		cfg:         cfg,
+		nvimArgs:    append([]string(nil), nvimArgs...),
+		options:     options,
+		state:       uistate.New(),
+		ime:         newIMEShadow(),
+		policy:      cfg.Editor.InputPolicy(),
+		openURL:     openExternalURL,
+		iconColor:   iconColor,
+		iconFromEnv: iconFromEnv,
+		iconUpdate:  make(chan string, 1),
 	}
 }
 
@@ -134,9 +147,9 @@ func (a *App) Run(win *gioapp.Window) error {
 		Size:   unit.Sp(a.cfg.Editor.FontSize),
 	}
 
-	icon := appIcon()
+	setAppIdentity(a.iconColor)
 	for {
-		reopen, err := a.runWindow(win, icon)
+		reopen, err := a.runWindow(win)
 		if !reopen {
 			return err
 		}
@@ -148,7 +161,7 @@ func (a *App) Run(win *gioapp.Window) error {
 
 // runWindow drives one window to destruction and reports whether a
 // replacement is needed.
-func (a *App) runWindow(win *gioapp.Window, icon *image.RGBA) (bool, error) {
+func (a *App) runWindow(win *gioapp.Window) (bool, error) {
 	a.setWindow(win)
 	windowOptions := []gioapp.Option{gioapp.Size(unit.Dp(1000), unit.Dp(650))}
 	if a.options.Maximized {
@@ -161,7 +174,7 @@ func (a *App) runWindow(win *gioapp.Window, icon *image.RGBA) (bool, error) {
 		switch e := win.Event().(type) {
 		case gioapp.ViewEvent:
 			a.view = e
-			setWindowIcon(e, icon)
+			setWindowIcon(e, a.iconColor)
 			if e.Valid() {
 				// Both hooks patch the native window, which has to
 				// happen on the thread that owns it: on Windows that
@@ -170,6 +183,7 @@ func (a *App) runWindow(win *gioapp.Window, icon *image.RGBA) (bool, error) {
 				win.Run(func() {
 					installDropTarget(e)
 					installCloseHandler(e)
+					installBeepSuppressor(e)
 				})
 			}
 		case gioapp.DestroyEvent:
@@ -217,6 +231,7 @@ func (a *App) layout(gtx layout.Context) {
 	a.syncSize(size)
 	a.drainOpenRequests()
 	a.drainCloseRequest()
+	a.drainIconUpdate()
 
 	snap := a.state.Snapshot()
 	if snap.Title != a.title {
@@ -573,6 +588,37 @@ func (a *App) startNvim() {
 	}
 	a.proc = proc
 	go a.pumpRedraw()
+	if !a.iconFromEnv {
+		go a.watchStartup(proc)
+	}
+}
+
+// watchStartup turns Nvim's report of its first buffer into the icon color:
+// green for a terminal, the default otherwise.
+func (a *App) watchStartup(proc *nvimproc.Process) {
+	select {
+	case buftype := <-proc.Startup:
+		color := defaultIconColor
+		if buftype == "terminal" {
+			color = terminalIconColor
+		}
+		a.iconUpdate <- color
+		a.invalidate()
+	case <-proc.Exited:
+	}
+}
+
+// drainIconUpdate applies a corrected icon color on the event goroutine,
+// which owns a.view.
+func (a *App) drainIconUpdate() {
+	select {
+	case color := <-a.iconUpdate:
+		if color != a.iconColor {
+			a.iconColor = color
+			setWindowIcon(a.view, color)
+		}
+	default:
+	}
 }
 
 // pumpRedraw applies every `redraw` batch Nvim sends to the state model and

@@ -12,13 +12,44 @@ import (
 )
 
 func TestAppIcon(t *testing.T) {
-	img := appIcon()
-	if img == nil {
-		t.Fatal("appIcon returned nil")
+	for _, color := range iconColors {
+		img := decodeIcon(iconPNG(color))
+		if img == nil {
+			t.Fatalf("%s icon decoded to nil", color)
+		}
+		if b := img.Bounds(); b.Dx() == 0 || b.Dy() == 0 {
+			t.Fatalf("%s icon is empty: %v", color, b)
+		}
 	}
-	b := img.Bounds()
-	if b.Dx() == 0 || b.Dy() == 0 {
-		t.Fatalf("appIcon returned empty image: %v", b)
+}
+
+func TestStartupIconColor(t *testing.T) {
+	tests := []struct {
+		name    string
+		environ []string
+		args    []string
+		want    string
+		fromEnv bool
+	}{
+		{"default", nil, nil, "blue", false},
+		{"file", nil, []string{"notes.md"}, "blue", false},
+		{"term", nil, []string{"-c", "term", "-c", "startinsert"}, "green", false},
+		{"terminal with cmd", nil, []string{"-c", "terminal htop"}, "green", false},
+		{"plus ter", nil, []string{"+ter"}, "green", false},
+		{"too short", nil, []string{"-c", "te"}, "blue", false},
+		{"not terminal", nil, []string{"-c", "termx"}, "blue", false},
+		{"term then file", nil, []string{"-c", "term", "notes.md"}, "blue", false},
+		{"term after --", nil, []string{"-c", "term", "--"}, "green", false},
+		{"env wins", []string{"SIMPLENVIM_BA_RED=1"}, []string{"-c", "term"}, "red", true},
+		{"env lowercase", []string{"simplenvim_ba_pink="}, nil, "pink", true},
+		{"env unknown", []string{"SIMPLENVIM_BA_TEAL=1"}, nil, "blue", false},
+		{"env order", []string{"SIMPLENVIM_BA_GRAY=1", "SIMPLENVIM_BA_YELLOW=1"}, nil, "yellow", true},
+	}
+	for _, tt := range tests {
+		got, fromEnv := startupIconColor(tt.environ, tt.args)
+		if got != tt.want || fromEnv != tt.fromEnv {
+			t.Errorf("%s: got (%q, %v), want (%q, %v)", tt.name, got, fromEnv, tt.want, tt.fromEnv)
+		}
 	}
 }
 
