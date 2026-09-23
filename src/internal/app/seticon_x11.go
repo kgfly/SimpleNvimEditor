@@ -8,6 +8,7 @@ package editorapp
 
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
+#include <X11/Xutil.h>
 #include <stdlib.h>
 
 static void set_net_wm_icon(void *dpy, unsigned long win,
