@@ -34,9 +34,9 @@ mv "$ROOT/build/simplenvim" "$APP/Contents/MacOS/simplenvim"
 ICONSET="$ROOT/build/AppIcon.iconset"
 rm -rf "$ICONSET"; mkdir -p "$ICONSET"
 for sz in 16 32 64 128 256 512; do
-  sips -z $sz $sz "$ROOT/src/internal/app/icon.png" \
+  sips -z $sz $sz "$ROOT/src/internal/app/icon_bg_blue.png" \
     --out "$ICONSET/icon_${sz}x${sz}.png" >/dev/null
-  sips -z $((sz * 2)) $((sz * 2)) "$ROOT/src/internal/app/icon.png" \
+  sips -z $((sz * 2)) $((sz * 2)) "$ROOT/src/internal/app/icon_bg_blue.png" \
     --out "$ICONSET/icon_${sz}x${sz}@2x.png" >/dev/null
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"

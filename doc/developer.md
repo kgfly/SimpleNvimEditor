@@ -128,7 +128,7 @@ On macOS, prefer:
 ```
 
 It builds the binary, wraps it in `build/SimpleNvimEditor.app` (generating
-`AppIcon.icns` from `src/internal/app/icon.png`), ad-hoc code-signs the
+`AppIcon.icns` from `src/internal/app/icon_bg_blue.png`), ad-hoc code-signs the
 bundle, launches it through LaunchServices, and then prints the bundle
 identity the running process actually got.
 

@@ -47,7 +47,11 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y pkg-config libx11-dev libx11-xcb-dev libxkbcommon-dev libxkbcommon-x11-dev libxcursor-dev libxfixes-dev libwayland-dev libgl1-mesa-dev libvulkan-dev
+          sudo apt-get install -y pkg-config libx11-dev libx11-xcb-dev libxkbcommon-dev libxkbcommon-x11-dev libxcursor-dev libxfixes-dev libwayland-dev libgl1-mesa-dev libvulkan-dev imagemagick
+
+      - name: Generate Linux icons
+        if: runner.os == 'Linux'
+        run: bash packaging/linux/make-assets.sh
 
       - name: Put mingw-w64 gcc on PATH (Windows, cgo)
         if: runner.os == 'Windows'
@@ -65,7 +69,7 @@ jobs:
           pip install Pillow --quiet
           python3 -c "
           from PIL import Image
-          img = Image.open('src/internal/app/icon.png')
+          img = Image.open('src/internal/app/icon_bg_blue.png')
           img.save('src/cmd/simplenvim/icon.ico', format='ICO',
                    sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)])
           "
@@ -98,7 +102,8 @@ jobs:
           if [ "${{ matrix.goos }}" = "windows" ]; then
             cp src/cmd/simplenvim/icon.ico "dist/${dir}/"
           elif [ "${{ matrix.goos }}" = "linux" ]; then
-            cp packaging/linux/simplenvim.desktop packaging/linux/icons/simplenvim_256x256.png "dist/${dir}/"
+            cp packaging/linux/simplenvim.desktop "dist/${dir}/"
+            cp build/linux/share/icons/hicolor/256x256/apps/simplenvim.png "dist/${dir}/simplenvim_256x256.png"
           fi
           cd dist
           if [ "${{ matrix.goos }}" = "windows" ]; then

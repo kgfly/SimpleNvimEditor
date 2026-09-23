@@ -40,7 +40,10 @@ jobs:
           echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' \
             | sudo tee /etc/apt/sources.list.d/goreleaser.list
           sudo apt-get update
-          sudo apt-get install -y nfpm
+          sudo apt-get install -y nfpm imagemagick
+
+      - name: Generate icons
+        run: bash packaging/linux/make-assets.sh
 
       - name: Stage binary
         run: |
@@ -157,6 +160,12 @@ jobs:
           name: binary-linux-${{ matrix.goarch }}
           path: incoming
 
+      - name: Generate desktop assets
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+          bash packaging/linux/make-assets.sh
+
       - name: Build .pkg.tar.zst
         env:
           VERSION: ${{ inputs.version }}
@@ -175,6 +184,8 @@ jobs:
           cp stage/simplenvim "$pkgdir/usr/bin/"
           cp README.md "$pkgdir/usr/share/doc/simplenvim/"
           cp LICENSE "$pkgdir/usr/share/licenses/simplenvim/"
+          cp -r build/linux/share/. "$pkgdir/usr/share/"
+          cp packaging/linux/simplenvim.desktop "$pkgdir/usr/share/applications/"
 
           cat > .PKGINFO <<EOF
           pkgname = simplenvim

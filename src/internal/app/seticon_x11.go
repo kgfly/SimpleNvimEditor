@@ -8,6 +8,7 @@ package editorapp
 
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
+#include <X11/Xutil.h>
 #include <stdlib.h>
 
 static void set_net_wm_icon(void *dpy, unsigned long win,
@@ -16,6 +17,12 @@ static void set_net_wm_icon(void *dpy, unsigned long win,
     Atom cardinal    = XInternAtom((Display*)dpy, "CARDINAL", 0);
     XChangeProperty((Display*)dpy, (Window)win, net_wm_icon, cardinal, 32,
                     PropModeReplace, (unsigned char*)data, n);
+    XFlush((Display*)dpy);
+}
+
+static void set_wm_class(void *dpy, unsigned long win, char *name) {
+    XClassHint hint = {name, name};
+    XSetClassHint((Display*)dpy, (Window)win, &hint);
     XFlush((Display*)dpy);
 }
 
@@ -50,29 +57,47 @@ import (
 	"unsafe"
 
 	gioapp "gioui.org/app"
+	xdraw "golang.org/x/image/draw"
 )
 
-func setWindowIcon(view any, icon *image.RGBA) {
+func setWindowIcon(view any, color string) {
 	ev, ok := view.(gioapp.X11ViewEvent)
 	if !ok || !ev.Valid() {
 		return
 	}
-	b := icon.Bounds()
-	w, h := b.Dx(), b.Dy()
-	n := 2 + w*h
-	data := make([]C.ulong, n)
-	data[0] = C.ulong(w)
-	data[1] = C.ulong(h)
-	for y := b.Min.Y; y < b.Max.Y; y++ {
-		for x := b.Min.X; x < b.Max.X; x++ {
-			r, g, bl, a := icon.At(x, y).RGBA()
-			argb := (uint32(a>>8) << 24) | (uint32(r>>8) << 16) |
-				(uint32(g>>8) << 8) | uint32(bl>>8)
-			data[2+(y-b.Min.Y)*w+(x-b.Min.X)] = C.ulong(argb)
+	data := netWMIcon(decodeIcon(iconPNG(color)))
+	C.set_net_wm_icon(ev.Display, C.ulong(ev.Window),
+		(*C.ulong)(unsafe.Pointer(&data[0])), C.int(len(data)))
+
+	// Docks that match windows to .desktop files by WM_CLASS show that
+	// file's icon, so a color changed after startup needs a new class.
+	if id := appID(color); id != gioapp.ID {
+		cs := C.CString(id)
+		defer C.free(unsafe.Pointer(cs))
+		C.set_wm_class(ev.Display, C.ulong(ev.Window), cs)
+	}
+}
+
+// netWMIcon encodes src as _NET_WM_ICON data at several sizes, so taskbars
+// such as IceWM's and xfce4-panel's can pick one instead of scaling.
+func netWMIcon(src *image.NRGBA) []C.ulong {
+	var data []C.ulong
+	for _, size := range []int{16, 32, 48, 64} {
+		img := src
+		if size != src.Bounds().Dx() {
+			img = image.NewNRGBA(image.Rect(0, 0, size, size))
+			xdraw.CatmullRom.Scale(img, img.Bounds(), src, src.Bounds(), xdraw.Src, nil)
+		}
+		b := img.Bounds()
+		data = append(data, C.ulong(b.Dx()), C.ulong(b.Dy()))
+		for y := b.Min.Y; y < b.Max.Y; y++ {
+			for x := b.Min.X; x < b.Max.X; x++ {
+				c := img.NRGBAAt(x, y)
+				data = append(data, C.ulong(uint32(c.A)<<24|uint32(c.R)<<16|uint32(c.G)<<8|uint32(c.B)))
+			}
 		}
 	}
-	C.set_net_wm_icon(ev.Display, C.ulong(ev.Window),
-		(*C.ulong)(unsafe.Pointer(&data[0])), C.int(n))
+	return data
 }
 
 func setWindowTitle(view any, title string) {

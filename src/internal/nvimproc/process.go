@@ -49,6 +49,10 @@ type Process struct {
 	// error rather than a clean shutdown.
 	ServeErr error
 
+	// Startup receives the 'buftype' of Nvim's first buffer once, after
+	// startup (-c commands and VimEnter handlers included) has finished.
+	Startup chan string
+
 	// cmds serializes every outgoing call (Input, InputMouse, Resize,
 	// RequestQuit) through a single goroutine. This matters: each of
 	// those methods is called from Gio's UI goroutine and previously
@@ -94,11 +98,12 @@ func Spawn(command string, extraArgs, nvimArgs []string, cols, rows int) (*Proce
 	}
 
 	p := &Process{
-		Nvim:   v,
-		Redraw: make(chan [][]interface{}),
-		queue:  newRedrawQueue(),
-		Exited: make(chan struct{}),
-		cmds:   make(chan func(), 1024),
+		Nvim:    v,
+		Redraw:  make(chan [][]interface{}),
+		queue:   newRedrawQueue(),
+		Exited:  make(chan struct{}),
+		Startup: make(chan string, 1),
+		cmds:    make(chan func(), 1024),
 	}
 	p.registerHandlers()
 	go p.runCmds()
@@ -112,11 +117,28 @@ func Spawn(command string, extraArgs, nvimArgs []string, cols, rows int) (*Proce
 		close(p.Exited)
 	}()
 
+	// --embed holds startup until the UI attaches, so the probe's autocmd
+	// is in place before VimEnter. Failure only loses the report.
+	_ = v.ExecLua(startupProbe, nil)
+
 	if err := v.AttachUI(cols, rows, UIOptions); err != nil {
 		return nil, fmt.Errorf("attach ui: %w", err)
 	}
 	return p, nil
 }
+
+// startupProbe reports the first buffer's 'buftype' through the
+// "simplenvim_startup" notification. vim.schedule lets VimEnter handlers
+// from the user's config run first.
+const startupProbe = `
+local chan = vim.api.nvim_get_api_info()[1]
+vim.api.nvim_create_autocmd('VimEnter', { once = true, callback = function()
+  vim.schedule(function()
+    local buf = vim.api.nvim_list_bufs()[1]
+    vim.rpcnotify(chan, 'simplenvim_startup', buf and vim.bo[buf].buftype or '')
+  end)
+end })
+`
 
 // registerHandlers wires the "redraw" msgpack-rpc notification (the one
 // Nvim sends for every UI update) to the Redraw channel. Each call carries
@@ -128,6 +150,12 @@ func (p *Process) registerHandlers() {
 		// never discard a batch. See redrawQueue for why dropping one is
 		// unrecoverable.
 		p.queue.push(updates)
+	})
+	_ = p.Nvim.RegisterHandler("simplenvim_startup", func(buftype string) {
+		select {
+		case p.Startup <- buftype:
+		default:
+		}
 	})
 	go p.forwardRedraw()
 }

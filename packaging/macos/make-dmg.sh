@@ -29,10 +29,10 @@ mkdir -p "build/${BUNDLE}/Contents/MacOS"
 mkdir -p "build/${BUNDLE}/Contents/Resources"
 mv build/simplenvim "build/${BUNDLE}/Contents/MacOS/simplenvim"
 
-# Build an .icns icon set from the embedded icon.png.
+# Build an .icns icon set from the embedded default (blue) icon.
 ICONSET="build/AppIcon.iconset"
 mkdir -p "${ICONSET}"
-ICON_SRC="src/internal/app/icon.png"
+ICON_SRC="src/internal/app/icon_bg_blue.png"
 for sz in 16 32 64 128 256 512; do
   sips -z ${sz} ${sz} "${ICON_SRC}" --out "${ICONSET}/icon_${sz}x${sz}.png" >/dev/null
   dbl=$((sz * 2))
