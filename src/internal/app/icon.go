@@ -16,13 +16,13 @@ import (
 var iconFiles embed.FS
 
 // iconColors are the available icon backgrounds, in the order the
-// SIMPLENVIM_BA_<COLOR> variables are checked.
+// SIMPLENVIM_BG_<COLOR> variables are checked.
 var iconColors = []string{"blue", "green", "yellow", "red", "orange", "purple", "pink", "brown", "black", "white", "gray"}
 
 const (
 	defaultIconColor  = "blue"
 	terminalIconColor = "green"
-	iconEnvPrefix     = "SIMPLENVIM_BA_"
+	iconEnvPrefix     = "SIMPLENVIM_BG_"
 )
 
 // iconPNG returns the embedded icon for color, falling back to the default.
@@ -34,7 +34,7 @@ func iconPNG(color string) []byte {
 	return data
 }
 
-// startupIconColor picks the icon color from a SIMPLENVIM_BA_<COLOR>
+// startupIconColor picks the icon color from a SIMPLENVIM_BG_<COLOR>
 // variable, else green when Nvim is expected to open in a terminal.
 func startupIconColor(environ, nvimArgs []string) (color string, fromEnv bool) {
 	if c := envIconColor(environ); c != "" {
@@ -46,7 +46,7 @@ func startupIconColor(environ, nvimArgs []string) (color string, fromEnv bool) {
 	return defaultIconColor, false
 }
 
-// envIconColor returns the color of the first SIMPLENVIM_BA_<COLOR>
+// envIconColor returns the color of the first SIMPLENVIM_BG_<COLOR>
 // variable set in environ (names compared case-insensitively), or "".
 func envIconColor(environ []string) string {
 	set := map[string]bool{}

@@ -40,10 +40,10 @@ func TestStartupIconColor(t *testing.T) {
 		{"not terminal", nil, []string{"-c", "termx"}, "blue", false},
 		{"term then file", nil, []string{"-c", "term", "notes.md"}, "blue", false},
 		{"term after --", nil, []string{"-c", "term", "--"}, "green", false},
-		{"env wins", []string{"SIMPLENVIM_BA_RED=1"}, []string{"-c", "term"}, "red", true},
-		{"env lowercase", []string{"simplenvim_ba_pink="}, nil, "pink", true},
-		{"env unknown", []string{"SIMPLENVIM_BA_TEAL=1"}, nil, "blue", false},
-		{"env order", []string{"SIMPLENVIM_BA_GRAY=1", "SIMPLENVIM_BA_YELLOW=1"}, nil, "yellow", true},
+		{"env wins", []string{"SIMPLENVIM_BG_RED=1"}, []string{"-c", "term"}, "red", true},
+		{"env lowercase", []string{"simplenvim_bg_pink="}, nil, "pink", true},
+		{"env unknown", []string{"SIMPLENVIM_BG_TEAL=1"}, nil, "blue", false},
+		{"env order", []string{"SIMPLENVIM_BG_GRAY=1", "SIMPLENVIM_BG_YELLOW=1"}, nil, "yellow", true},
 	}
 	for _, tt := range tests {
 		got, fromEnv := startupIconColor(tt.environ, tt.args)

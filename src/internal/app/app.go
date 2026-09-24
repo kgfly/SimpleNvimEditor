@@ -64,7 +64,7 @@ type App struct {
 	view       any
 
 	// iconColor is the dock/taskbar icon background. Unless it came from
-	// a SIMPLENVIM_BA_* variable, Nvim's startup report may correct it
+	// a SIMPLENVIM_BG_* variable, Nvim's startup report may correct it
 	// through iconUpdate.
 	iconColor   string
 	iconFromEnv bool
