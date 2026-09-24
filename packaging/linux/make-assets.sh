@@ -42,7 +42,7 @@ for src in src/internal/app/icon_bg_*.png; do
 Type=Application
 Name=SimpleNvimEditor (${color})
 Comment=A simple, fast, native Neovim GUI
-Exec=env SIMPLENVIM_BA_${upper}=1 simplenvim %F
+Exec=env SIMPLENVIM_BG_${upper}=1 simplenvim %F
 Icon=${name}
 StartupWMClass=${name}
 Terminal=false

@@ -158,11 +158,11 @@ apart. The "S" stays the same and only the background changes:
 - **Blue** is the default.
 - **Green** means Neovim's first buffer is a terminal, for example
   `simplenvim -- -c term`.
-- **Any other color** can be chosen by setting `SIMPLENVIM_BA_<COLOR>` before
+- **Any other color** can be chosen by setting `SIMPLENVIM_BG_<COLOR>` before
   the app starts. The value doesn't matter and the name is case-insensitive:
 
   ```sh
-  SIMPLENVIM_BA_RED=1 simplenvim ~/prod.conf
+  SIMPLENVIM_BG_RED=1 simplenvim ~/test.txt
   ```
 
   The available colors are `BLUE`, `GREEN`, `YELLOW`, `RED`, `ORANGE`,
