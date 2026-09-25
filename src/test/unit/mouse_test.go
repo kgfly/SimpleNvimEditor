@@ -18,6 +18,8 @@ func TestMouseButtonFor(t *testing.T) {
 		{"primary", pointer.ButtonPrimary, "left"},
 		{"secondary", pointer.ButtonSecondary, "right"},
 		{"tertiary", pointer.ButtonTertiary, "middle"},
+		{"quaternary (back)", pointer.ButtonQuaternary, "x1"},
+		{"quinary (forward)", pointer.ButtonQuinary, "x2"},
 		{"none", 0, ""},
 		{"primary wins when multiple bits set", pointer.ButtonPrimary | pointer.ButtonSecondary, "left"},
 	}
