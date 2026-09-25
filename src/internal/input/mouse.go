@@ -13,6 +13,10 @@ func MouseButtonFor(e pointer.Event) string {
 		return "right"
 	case e.Buttons.Contain(pointer.ButtonTertiary):
 		return "middle"
+	case e.Buttons.Contain(pointer.ButtonQuaternary):
+		return "x1"
+	case e.Buttons.Contain(pointer.ButtonQuinary):
+		return "x2"
 	default:
 		return ""
 	}

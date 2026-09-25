@@ -137,6 +137,8 @@ func (a *App) Run(win *gioapp.Window) error {
 	defer setOpenFileWake(nil)
 	setCloseRequestWake(a.invalidate)
 	defer setCloseRequestWake(nil)
+	setSideButtonWake(a.invalidate)
+	defer setSideButtonWake(nil)
 
 	a.fonts = render.Fonts{
 		Shaper: render.NewShaper(),
@@ -184,6 +186,7 @@ func (a *App) runWindow(win *gioapp.Window) (bool, error) {
 					installDropTarget(e)
 					installCloseHandler(e)
 					installBeepSuppressor(e)
+					installSideButtons(e)
 				})
 			}
 		case gioapp.DestroyEvent:
@@ -231,6 +234,7 @@ func (a *App) layout(gtx layout.Context) {
 	a.syncSize(size)
 	a.drainOpenRequests()
 	a.drainCloseRequest()
+	a.drainSideButtons()
 
 	snap := a.state.Snapshot()
 	if snap.Title != a.title {
