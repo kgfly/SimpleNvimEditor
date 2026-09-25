@@ -1,8 +1,15 @@
 package editorapp
 
 import (
+	"bufio"
+	"fmt"
 	"image"
+	"os"
+	"os/exec"
+	"runtime"
+	"strings"
 	"testing"
+	"time"
 
 	"gioui.org/io/key"
 	"gioui.org/io/pointer"
@@ -13,13 +20,103 @@ import (
 
 func TestAppIcon(t *testing.T) {
 	for _, color := range iconColors {
-		img := decodeIcon(iconPNG(color))
-		if img == nil {
-			t.Fatalf("%s icon decoded to nil", color)
+		for n := 1; n <= maxSlot; n++ {
+			icon := color
+			if n > 1 {
+				icon = fmt.Sprintf("%s_%d", color, n)
+			}
+			if _, err := iconFiles.ReadFile("icons/icon_bg_" + icon + ".png"); err != nil {
+				t.Fatalf("%s icon missing: %v", icon, err)
+			}
+			img := decodeIcon(iconPNG(icon))
+			if img == nil {
+				t.Fatalf("%s icon decoded to nil", icon)
+			}
+			if b := img.Bounds(); b.Dx() == 0 || b.Dy() == 0 {
+				t.Fatalf("%s icon is empty: %v", icon, b)
+			}
 		}
-		if b := img.Bounds(); b.Dx() == 0 || b.Dy() == 0 {
-			t.Fatalf("%s icon is empty: %v", color, b)
+	}
+}
+
+func TestAppID(t *testing.T) {
+	for icon, want := range map[string]string{
+		"black":   "simplenvim",
+		"black_2": "simplenvim-black-2",
+		"blue":    "simplenvim-blue",
+		"green":   "simplenvim-green",
+		"green_9": "simplenvim-green-9",
+	} {
+		if got := appID(icon); got != want {
+			t.Errorf("appID(%q) = %q, want %q", icon, got, want)
 		}
+	}
+}
+
+// TestClaimIconHelper is the child process for TestClaimIconAcrossProcesses:
+// it claims a slot, reports the icon, and holds the slot until killed.
+func TestClaimIconHelper(t *testing.T) {
+	group := os.Getenv("SIMPLENVIM_TEST_SLOT_GROUP")
+	if group == "" {
+		t.Skip("helper process only")
+	}
+	fmt.Println(claimIcon(group))
+	time.Sleep(time.Minute)
+}
+
+func TestClaimIconAcrossProcesses(t *testing.T) {
+	switch runtime.GOOS {
+	case "windows", "linux", "darwin":
+	default:
+		t.Skip("no slot claim on " + runtime.GOOS)
+	}
+	group := fmt.Sprintf("test%d", os.Getpid())
+	start := func() (*exec.Cmd, string) {
+		cmd := exec.Command(os.Args[0], "-test.run=^TestClaimIconHelper$")
+		cmd.Env = append(os.Environ(), "SIMPLENVIM_TEST_SLOT_GROUP="+group)
+		out, err := cmd.StdoutPipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() {
+			_ = cmd.Process.Kill()
+			_ = cmd.Wait()
+		})
+		line, err := bufio.NewReader(out).ReadString('\n')
+		if err != nil {
+			t.Fatal(err)
+		}
+		return cmd, strings.TrimSpace(line)
+	}
+	kill := func(cmd *exec.Cmd) {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+	}
+
+	first, got := start()
+	if got != group {
+		t.Fatalf("first instance = %q, want %q", got, group)
+	}
+	if _, got := start(); got != group+"_2" {
+		t.Fatalf("second instance = %q, want %q", got, group+"_2")
+	}
+
+	// A killed instance's slot is freed by the OS; macOS frees it
+	// asynchronously, so allow a moment.
+	kill(first)
+	for i := 0; ; i++ {
+		cmd, got := start()
+		if got == group {
+			break
+		}
+		kill(cmd)
+		if i == 20 {
+			t.Fatalf("after kill = %q, want %q", got, group)
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 
@@ -27,28 +124,17 @@ func TestStartupIconColor(t *testing.T) {
 	tests := []struct {
 		name    string
 		environ []string
-		args    []string
 		want    string
-		fromEnv bool
 	}{
-		{"default", nil, nil, "blue", false},
-		{"file", nil, []string{"notes.md"}, "blue", false},
-		{"term", nil, []string{"-c", "term", "-c", "startinsert"}, "green", false},
-		{"terminal with cmd", nil, []string{"-c", "terminal htop"}, "green", false},
-		{"plus ter", nil, []string{"+ter"}, "green", false},
-		{"too short", nil, []string{"-c", "te"}, "blue", false},
-		{"not terminal", nil, []string{"-c", "termx"}, "blue", false},
-		{"term then file", nil, []string{"-c", "term", "notes.md"}, "blue", false},
-		{"term after --", nil, []string{"-c", "term", "--"}, "green", false},
-		{"env wins", []string{"SIMPLENVIM_BG_RED=1"}, []string{"-c", "term"}, "red", true},
-		{"env lowercase", []string{"simplenvim_bg_pink="}, nil, "pink", true},
-		{"env unknown", []string{"SIMPLENVIM_BG_TEAL=1"}, nil, "blue", false},
-		{"env order", []string{"SIMPLENVIM_BG_GRAY=1", "SIMPLENVIM_BG_YELLOW=1"}, nil, "yellow", true},
+		{"default", nil, "black"},
+		{"env", []string{"SIMPLENVIM_BG_RED=1"}, "red"},
+		{"env lowercase", []string{"simplenvim_bg_pink="}, "pink"},
+		{"env unknown", []string{"SIMPLENVIM_BG_TEAL=1"}, "black"},
+		{"env order", []string{"SIMPLENVIM_BG_GRAY=1", "SIMPLENVIM_BG_YELLOW=1"}, "yellow"},
 	}
 	for _, tt := range tests {
-		got, fromEnv := startupIconColor(tt.environ, tt.args)
-		if got != tt.want || fromEnv != tt.fromEnv {
-			t.Errorf("%s: got (%q, %v), want (%q, %v)", tt.name, got, fromEnv, tt.want, tt.fromEnv)
+		if got := startupIconColor(tt.environ); got != tt.want {
+			t.Errorf("%s: got %q, want %q", tt.name, got, tt.want)
 		}
 	}
 }

@@ -6,9 +6,12 @@
 #import <Cocoa/Cocoa.h>
 
 // snv_set_app_icon copies the PNG bytes and applies them on the main
-// thread; a NULL/0 image restores the bundle icon.
-void snv_set_app_icon(const void *data, int len) {
-    NSData *bytes = len > 0 ? [NSData dataWithBytes:data length:(NSUInteger)len] : nil;
+// thread; preferBundle restores the bundle icon if the app has one.
+void snv_set_app_icon(const void *data, int len, int preferBundle) {
+    NSData *bytes = [NSData dataWithBytes:data length:(NSUInteger)len];
+    if (preferBundle && [[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleIconFile"] != nil) {
+        bytes = nil;
+    }
     dispatch_async(dispatch_get_main_queue(), ^{
         NSImage *image = bytes != nil ? [[NSImage alloc] initWithData:bytes] : nil;
         [NSApp setApplicationIconImage:image];

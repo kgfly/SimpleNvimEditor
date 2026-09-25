@@ -69,7 +69,7 @@ jobs:
           pip install Pillow --quiet
           python3 -c "
           from PIL import Image
-          img = Image.open('src/internal/app/icon_bg_blue.png')
+          img = Image.open('src/internal/app/icons/icon_bg_black.png')
           img.save('src/cmd/simplenvim/icon.ico', format='ICO',
                    sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)])
           "

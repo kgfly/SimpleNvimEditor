@@ -39,6 +39,8 @@ There are surprisingly few candidates that meet that bar.
 - GPU rendering from Go/Gio.
 - Can serve as a terminal with `simplenvim --maximized -- -c term -c startinsert`,
   so you do not need separate terminal software.
+- Can serve as a GUI diff tool wtih `simplenvim --maximized -- -c 'set splitright | e ~/1.txt | vsp ~/2.txt | windo diffthis'`, 
+  so you do not need sperate GUI diff tool
 
 Simple and pure: no bloat, no bundled plugin marketplace, and no telemetry.
 
@@ -152,12 +154,13 @@ simplenvim --maximized -- -c term -c 'edit ~/todo.txt'
 
 ## Dock and taskbar icon color
 
-When several editors are open, the dock or taskbar icon color tells them
+Q: when you have 3 instances running as text editor, 3 instances running as IDE,  3 instances running as diff tool,  3 instances running as terminal, 
+how do you find which is for what?
+
+A: the dock or taskbar icon color tells them
 apart. The "S" stays the same and only the background changes:
 
-- **Blue** is the default.
-- **Green** means Neovim's first buffer is a terminal, for example
-  `simplenvim -- -c term`.
+- **Black** is the default.
 - **Any other color** can be chosen by setting `SIMPLENVIM_BG_<COLOR>` before
   the app starts. The value doesn't matter and the name is case-insensitive:
 
@@ -166,32 +169,35 @@ apart. The "S" stays the same and only the background changes:
   ```
 
   The available colors are `BLUE`, `GREEN`, `YELLOW`, `RED`, `ORANGE`,
-  `PURPLE`, `PINK`, `BROWN`, `BLACK`, `WHITE` and `GRAY`. The environment
-  variable overrides terminal detection. If more than one is set, the first
-  color in that list wins.
+  `PURPLE`, `PINK`, `BROWN`, `BLACK`, `WHITE` and `GRAY`.
+
+Editors with the same color are also numbered: the first shows the plain
+icon, the 2nd to 9th show a small 2–9 badge in the corner, and the 10th and
+later show the plain icon again. A new editor takes the lowest free number,
+and a number is freed as soon as its editor exits, even if it is killed.
+Editors started without `SIMPLENVIM_BG_*` (or with `SIMPLENVIM_BG_BLACK`)
+form the default black group.
 
 Platform notes:
 
 - **macOS:** the Dock icon changes while the app runs. A pinned Dock tile
   shows the default icon when the app isn't running.
-- **Windows:** each non-default color gets its own taskbar group.
-- **Linux:** colors other than blue need the icons and hidden `.desktop`
+- **Windows:** each color and number gets its own taskbar group.
+- **Linux:** icons other than plain black need the icons and hidden `.desktop`
   entries installed by the `.deb`, `.rpm` or Arch package, because docks and
-  panels look them up by app ID (`simplenvim-<color>`). On X11 the window icon
-  itself also changes, so window-icon taskbars such as xfce4-panel and IceWM
-  show the color even without the package. On Wayland (GNOME, labwc, and so
-  on) the icon is fixed when the window opens, so only the environment
-  variable and a `-c term` on the command line apply. A terminal opened by your
-  Neovim config doesn't change it.
+  panels look them up by app ID (`simplenvim-<color>[-<number>]`). On X11 the
+  window icon itself also changes, so window-icon taskbars such as
+  xfce4-panel and IceWM show it even without the package. On FreeBSD and
+  OpenBSD editors aren't numbered.
 
 ## Versioning Rule
-v "X.Y.Z"
+For v"X.Y.Z":
 
-Z: bug fix.
+Z: bug fix. And Z does not bump Y.
 
 Y: normal feature update.
 
-X: major feature update or it gets bumped every 10 Y.
+X: major feature update else it gets bumped every 10 Y.
 
 ## Reporting issues
 

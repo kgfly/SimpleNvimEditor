@@ -128,7 +128,7 @@ On macOS, prefer:
 ```
 
 It builds the binary, wraps it in `build/SimpleNvimEditor.app` (generating
-`AppIcon.icns` from `src/internal/app/icon_bg_blue.png`), ad-hoc code-signs the
+`AppIcon.icns` from `src/internal/app/icons/icon_bg_black.png`), ad-hoc code-signs the
 bundle, launches it through LaunchServices, and then prints the bundle
 identity the running process actually got.
 
@@ -146,16 +146,16 @@ none, so it inherits whatever launched it (Terminal, your editor, ...):
 |---|---|---|
 | `CFBundleIdentifier` | `[ NULL ]` | `io.github.kgfly.simplenvimeditor` |
 | `fileType` | `????` | `APPL` |
-| Dock icon | parent process's | the app's own |
+| Dock icon | embedded 64 px PNG | the app's own |
 | Voice dictation | never starts | works |
 
 Dictation has nothing to attach a session to, so pressing the dictation
 shortcut does nothing at all. Everything else — typing, Nvim, rendering —
 is unaffected, which is what makes this confusing to diagnose.
 
-**The Dock icon is the quickest tell:** the app's own icon means a real
-bundle identity; a generic or terminal icon means it has none, and dictation
-will not work. To confirm from the shell:
+**The Dock tile's name is the quickest tell:** `SimpleNvimEditor` means a
+real bundle identity; `simplenvim` means it has none, and dictation will not
+work. To confirm from the shell:
 
 ```sh
 lsappinfo info -only bundleid "$(lsappinfo find pid=$(pgrep -n simplenvim) | head -1)"
@@ -171,6 +171,29 @@ when you want dictation and stdout at the same time:
 
 For shipping a `.dmg`, see [Releasing](#releasing-official-build);
 `packaging/macos/make-dmg.sh` performs the same signing step.
+
+### Windows and Linux: run without installing
+
+```sh
+./scripts/run-linux.sh path/to/file.txt          # Linux
+```
+
+```powershell
+.\scripts\run-windows.ps1 path\to\file.txt        # Windows (PowerShell)
+```
+
+Both build `build/simplenvim[.exe]` and run it in place, with the colored
+and numbered icons working:
+
+- **Windows** sets the title-bar and taskbar icons from the embedded PNGs
+  at runtime, so a plain `go build` binary shows them too. Only the `.exe`
+  file's own icon in Explorer needs the `app_windows.syso` resource that CI
+  embeds.
+- **Linux** on Wayland takes the dock icon from an installed `.desktop`
+  file matching the app ID, so an uninstalled build shows a generic one.
+  The script therefore runs on Xwayland (with `WAYLAND_DISPLAY` set to
+  empty) when `DISPLAY` is available, where the window's own icon is used.
+  Set `SIMPLENVIM_WAYLAND=1` to stay on Wayland.
 
 ### Command-line flags
 

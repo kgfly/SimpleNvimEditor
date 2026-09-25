@@ -12,7 +12,8 @@ import (
 	gioapp "gioui.org/app"
 )
 
-//go:embed icon_bg_*.png
+//go:generate go run ./icongen icons
+//go:embed icons/icon_bg_*.png
 var iconFiles embed.FS
 
 // iconColors are the available icon backgrounds, in the order the
@@ -20,30 +21,27 @@ var iconFiles embed.FS
 var iconColors = []string{"blue", "green", "yellow", "red", "orange", "purple", "pink", "brown", "black", "white", "gray"}
 
 const (
-	defaultIconColor  = "blue"
-	terminalIconColor = "green"
-	iconEnvPrefix     = "SIMPLENVIM_BG_"
+	defaultIconColor = "black"
+	iconEnvPrefix    = "SIMPLENVIM_BG_"
 )
 
-// iconPNG returns the embedded icon for color, falling back to the default.
-func iconPNG(color string) []byte {
-	data, err := iconFiles.ReadFile("icon_bg_" + color + ".png")
+// iconPNG returns the embedded icon for icon (a color, optionally with an
+// _<n> instance number), falling back to the default.
+func iconPNG(icon string) []byte {
+	data, err := iconFiles.ReadFile("icons/icon_bg_" + icon + ".png")
 	if err != nil {
-		data, _ = iconFiles.ReadFile("icon_bg_" + defaultIconColor + ".png")
+		data, _ = iconFiles.ReadFile("icons/icon_bg_" + defaultIconColor + ".png")
 	}
 	return data
 }
 
 // startupIconColor picks the icon color from a SIMPLENVIM_BG_<COLOR>
-// variable, else green when Nvim is expected to open in a terminal.
-func startupIconColor(environ, nvimArgs []string) (color string, fromEnv bool) {
+// variable, else the default.
+func startupIconColor(environ []string) string {
 	if c := envIconColor(environ); c != "" {
-		return c, true
+		return c
 	}
-	if startsInTerminal(nvimArgs) {
-		return terminalIconColor, false
-	}
-	return defaultIconColor, false
+	return defaultIconColor
 }
 
 // envIconColor returns the color of the first SIMPLENVIM_BG_<COLOR>
@@ -64,57 +62,16 @@ func envIconColor(environ []string) string {
 	return ""
 }
 
-// startsInTerminal predicts from Nvim's arguments whether its first buffer
-// will be a terminal: no file is opened and a -c/+ command runs :terminal.
-// Nvim's own report after startup corrects any misprediction.
-func startsInTerminal(args []string) bool {
-	term := false
-	for i := 0; i < len(args); i++ {
-		arg := args[i]
-		switch {
-		case arg == "--":
-			return term && i == len(args)-1
-		case arg == "-c":
-			if i+1 < len(args) {
-				i++
-				term = term || isTerminalCmd(args[i])
-			}
-		case strings.HasPrefix(arg, "+"):
-			term = term || isTerminalCmd(arg[1:])
-		case arg == "--cmd" || arg == "-u" || arg == "-i" || arg == "-s" || arg == "-w" ||
-			arg == "-W" || arg == "--listen" || arg == "--startuptime":
-			i++
-		case arg == "-" || arg == "-t" || arg == "-q" || arg == "-S":
-			// These all load a buffer of their own before any -c command.
-			return false
-		case strings.HasPrefix(arg, "-"):
-		default:
-			return false
-		}
-	}
-	return term
-}
-
-// isTerminalCmd reports whether cmd is an Ex :ter[minal] command.
-func isTerminalCmd(cmd string) bool {
-	cmd = strings.TrimLeft(cmd, " \t:")
-	end := strings.IndexFunc(cmd, func(r rune) bool { return r < 'a' || r > 'z' })
-	if end >= 0 {
-		cmd = cmd[:end]
-	}
-	return len(cmd) >= 3 && strings.HasPrefix("terminal", cmd)
-}
-
 // appID is the X11 WM_CLASS / Wayland app_id that desktops match to a
-// .desktop file (and so to its icon) for color.
-func appID(color string) string {
-	if color == defaultIconColor {
+// .desktop file (and so to its icon) for icon, e.g. simplenvim-green-2.
+func appID(icon string) string {
+	if icon == defaultIconColor {
 		return "simplenvim"
 	}
-	return "simplenvim-" + color
+	return "simplenvim-" + strings.ReplaceAll(icon, "_", "-")
 }
 
-// setAppIdentity gives a non-default color its own desktop identity so
+// setAppIdentity gives a non-default icon its own desktop identity so
 // taskbars show and group it separately. It must run before any window
 // exists: none of these identities can be changed on an existing window.
 func setAppIdentity(color string) {
