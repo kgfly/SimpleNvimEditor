@@ -66,6 +66,8 @@ type App struct {
 	// iconColor is the dock/taskbar icon: a color, plus _<n> once Run has
 	// numbered this instance within its color group.
 	iconColor string
+	// numberIcon says whether Run numbers this instance; see startupIcon.
+	numberIcon bool
 
 	// metric is the pixel density the cached cell Metrics were measured
 	// at, so a move to a differently-scaled monitor can be detected; see
@@ -111,15 +113,17 @@ type Options struct {
 
 // New creates an App that starts Nvim with the given arguments (may be empty).
 func New(cfg config.Config, nvimArgs []string, options Options) *App {
+	iconColor, numberIcon := startupIcon(os.Environ())
 	return &App{
-		cfg:       cfg,
-		nvimArgs:  append([]string(nil), nvimArgs...),
-		options:   options,
-		state:     uistate.New(),
-		ime:       newIMEShadow(),
-		policy:    cfg.Editor.InputPolicy(),
-		openURL:   openExternalURL,
-		iconColor: startupIconColor(os.Environ()),
+		cfg:        cfg,
+		nvimArgs:   append([]string(nil), nvimArgs...),
+		options:    options,
+		state:      uistate.New(),
+		ime:        newIMEShadow(),
+		policy:     cfg.Editor.InputPolicy(),
+		openURL:    openExternalURL,
+		iconColor:  iconColor,
+		numberIcon: numberIcon,
 	}
 }
 
@@ -140,7 +144,9 @@ func (a *App) Run(win *gioapp.Window) error {
 		Size:   unit.Sp(a.cfg.Editor.FontSize),
 	}
 
-	a.iconColor = claimIcon(a.iconColor)
+	if a.numberIcon {
+		a.iconColor = claimIcon(a.iconColor)
+	}
 	setAppIdentity(a.iconColor)
 	for {
 		reopen, err := a.runWindow(win)

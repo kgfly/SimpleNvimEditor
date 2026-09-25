@@ -37,7 +37,7 @@ for src in src/internal/app/icons/icon_bg_*.png; do
   done
 
   [ "${icon}" = "black" ] && continue
-  env=""
+  env="env SIMPLENVIM_BG_DEFAULT=1 "
   if [ "${color}" != "black" ]; then
     env="env SIMPLENVIM_BG_$(echo "${color}" | tr '[:lower:]' '[:upper:]')=1 "
   fi

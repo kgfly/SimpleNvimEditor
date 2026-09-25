@@ -120,21 +120,25 @@ func TestClaimIconAcrossProcesses(t *testing.T) {
 	}
 }
 
-func TestStartupIconColor(t *testing.T) {
+func TestStartupIcon(t *testing.T) {
 	tests := []struct {
-		name    string
-		environ []string
-		want    string
+		name     string
+		environ  []string
+		want     string
+		numbered bool
 	}{
-		{"default", nil, "black"},
-		{"env", []string{"SIMPLENVIM_BG_RED=1"}, "red"},
-		{"env lowercase", []string{"simplenvim_bg_pink="}, "pink"},
-		{"env unknown", []string{"SIMPLENVIM_BG_TEAL=1"}, "black"},
-		{"env order", []string{"SIMPLENVIM_BG_GRAY=1", "SIMPLENVIM_BG_YELLOW=1"}, "yellow"},
+		{"default", nil, "black", false},
+		{"env default", []string{"SIMPLENVIM_BG_DEFAULT=1"}, "black", true},
+		{"env black", []string{"SIMPLENVIM_BG_BLACK=1"}, "black", true},
+		{"env", []string{"SIMPLENVIM_BG_RED=1"}, "red", true},
+		{"env lowercase", []string{"simplenvim_bg_pink="}, "pink", true},
+		{"env unknown", []string{"SIMPLENVIM_BG_TEAL=1"}, "black", false},
+		{"env order", []string{"SIMPLENVIM_BG_GRAY=1", "SIMPLENVIM_BG_YELLOW=1"}, "yellow", true},
+		{"env color over default", []string{"SIMPLENVIM_BG_DEFAULT=1", "SIMPLENVIM_BG_BLUE=1"}, "blue", true},
 	}
 	for _, tt := range tests {
-		if got := startupIconColor(tt.environ); got != tt.want {
-			t.Errorf("%s: got %q, want %q", tt.name, got, tt.want)
+		if got, numbered := startupIcon(tt.environ); got != tt.want || numbered != tt.numbered {
+			t.Errorf("%s: got %q, %v; want %q, %v", tt.name, got, numbered, tt.want, tt.numbered)
 		}
 	}
 }

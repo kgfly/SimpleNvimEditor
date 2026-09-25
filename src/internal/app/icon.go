@@ -35,17 +35,19 @@ func iconPNG(icon string) []byte {
 	return data
 }
 
-// startupIconColor picks the icon color from a SIMPLENVIM_BG_<COLOR>
-// variable, else the default.
-func startupIconColor(environ []string) string {
+// startupIcon picks the icon color from a SIMPLENVIM_BG_<COLOR> variable,
+// else the default, and reports whether to number it: only a color chosen
+// by a variable is numbered, SIMPLENVIM_BG_DEFAULT choosing the default.
+func startupIcon(environ []string) (color string, numbered bool) {
 	if c := envIconColor(environ); c != "" {
-		return c
+		return c, true
 	}
-	return defaultIconColor
+	return defaultIconColor, false
 }
 
 // envIconColor returns the color of the first SIMPLENVIM_BG_<COLOR>
-// variable set in environ (names compared case-insensitively), or "".
+// variable set in environ (names compared case-insensitively), the default
+// color for SIMPLENVIM_BG_DEFAULT, or "".
 func envIconColor(environ []string) string {
 	set := map[string]bool{}
 	for _, kv := range environ {
@@ -58,6 +60,9 @@ func envIconColor(environ []string) string {
 		if set[c] {
 			return c
 		}
+	}
+	if set["default"] {
+		return defaultIconColor
 	}
 	return ""
 }
