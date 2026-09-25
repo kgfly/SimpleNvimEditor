@@ -10,8 +10,8 @@
 #     bare binary : CFBundleIdentifier=[ NULL ]  fileType="????"  -> no dictation
 #     .app bundle : CFBundleIdentifier=io...     fileType="APPL"  -> dictation
 #
-# The Dock icon is the tell: the app's own icon means a real bundle identity,
-# a generic/terminal icon means it is running with none.
+# The Dock tile's name is the tell: SimpleNvimEditor means a real bundle
+# identity, simplenvim means it is running with none.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -34,9 +34,9 @@ mv "$ROOT/build/simplenvim" "$APP/Contents/MacOS/simplenvim"
 ICONSET="$ROOT/build/AppIcon.iconset"
 rm -rf "$ICONSET"; mkdir -p "$ICONSET"
 for sz in 16 32 64 128 256 512; do
-  sips -z $sz $sz "$ROOT/src/internal/app/icon_bg_blue.png" \
+  sips -z $sz $sz "$ROOT/src/internal/app/icons/icon_bg_black.png" \
     --out "$ICONSET/icon_${sz}x${sz}.png" >/dev/null
-  sips -z $((sz * 2)) $((sz * 2)) "$ROOT/src/internal/app/icon_bg_blue.png" \
+  sips -z $((sz * 2)) $((sz * 2)) "$ROOT/src/internal/app/icons/icon_bg_black.png" \
     --out "$ICONSET/icon_${sz}x${sz}@2x.png" >/dev/null
 done
 iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
