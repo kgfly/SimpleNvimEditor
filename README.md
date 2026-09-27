@@ -22,6 +22,9 @@ There are surprisingly few candidates that meet that bar.
 
 - **It's just Neovim.** A GUI shell around a real `nvim` process
   (`nvim_ui_attach`), not a fork or reimplementation of the editor.
+- Have an innovative way to color-grouped, numbered Dock/taskbar icons: find the
+  instance you want even with 10+ editors running. See
+  [Dock and taskbar icon color](#dock-and-taskbar-icon-color).
 - Cross-platform: Linux, macOS, and Windows.
 - Native window rendering via Gio — no Electron, no embedded browser.
 - Multigrid-aware rendering — window splits and floating windows (like
@@ -172,7 +175,8 @@ apart. The "S" stays the same and only the background changes:
   `PURPLE`, `PINK`, `BROWN`, `BLACK`, `WHITE` and `GRAY`.
 
 Editors with the same color are also numbered: the first shows the plain
-icon, the 2nd to 9th show "S2" to "S9" instead of the "S", and the 10th and
+icon, the 2nd to 9th show a big "2" to "9" with a small "s" in the corner
+instead of the "S", and the 10th and
 later show the plain icon again. A new editor takes the lowest free number,
 and a number is freed as soon as its editor exits, even if it is killed.
 

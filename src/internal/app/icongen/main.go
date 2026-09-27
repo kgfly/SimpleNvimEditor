@@ -1,6 +1,6 @@
 // Command icongen writes icon_bg_<color>_<n>.png (n = 2..9): the base
-// icon_bg_<color>.png background with "S<n>" on it, drawn here as a narrow
-// version of the base icon's blocky "S", both glyphs the same size.
+// icon_bg_<color>.png background with a big blocky <n> on it and a small
+// "s" in the bottom-left corner, in the style of the base icon's "S".
 //
 //	go run ./icongen [dir [file]]   (dir defaults to icons; file writes only that one)
 package main
@@ -16,24 +16,18 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 )
 
 var baseName = regexp.MustCompile(`^icon_bg_[a-z]+\.png$`)
 
-// Glyph layout in 64ths of the icon: the base S's rows, bar height and
-// corner cut, but two 24-wide columns with narrower stems.
-const (
-	glyphTop  = 9
-	glyphH    = 46
-	glyphLeft = 6
-	glyphW    = 24
-	glyphGap  = 4
-	barH      = 10
-	stemW     = 8
-	midY      = 18
-	chamfer   = 3.5
-	ss        = 4 // supersampling per pixel side
+const ss = 4 // supersampling per pixel side
+
+// style places a glyph box and sizes its strokes, in 64ths of the icon.
+type style struct{ x, y, w, h, bar, stem, chamfer float64 }
+
+var (
+	digitStyle = style{x: 25, y: 8, w: 32, h: 48, bar: 11, stem: 10, chamfer: 4}
+	smallS     = style{x: 7, y: 36, w: 14, h: 20, bar: 4, stem: 4, chamfer: 1.5}
 )
 
 func main() {
@@ -63,7 +57,7 @@ func main() {
 				continue
 			}
 			img := background(base, bg)
-			mask := labelMask("S"+strconv.Itoa(n), img.Bounds().Dx())
+			mask := labelMask(img.Bounds().Dx(), placed{smallS, 'S'}, placed{digitStyle, rune('0' + n)})
 			draw.DrawMask(img, img.Bounds(), image.NewUniform(fg), image.Point{}, mask, image.Point{}, draw.Over)
 			if err := writePNG(out, img); err != nil {
 				log.Fatal(err)
@@ -109,49 +103,68 @@ func background(base image.Image, bg color.NRGBA) *image.NRGBA {
 
 type rect struct{ x0, y0, x1, y1 float64 }
 
-// The bars and stems glyphs are built from, relative to the glyph box.
-var (
-	top = rect{0, 0, glyphW, barH}
-	mid = rect{0, midY, glyphW, midY + barH}
-	bot = rect{0, glyphH - barH, glyphW, glyphH}
-	lu  = rect{0, 0, stemW, midY + barH}
-	ll  = rect{0, midY, stemW, glyphH}
-	ru  = rect{glyphW - stemW, 0, glyphW, midY + barH}
-	rl  = rect{glyphW - stemW, midY, glyphW, glyphH}
-)
-
-// glyph is a character's rects; sharp ones keep square corners.
-type glyph struct{ rects, sharp []rect }
-
-var glyphs = map[rune]glyph{
-	'S': {rects: []rect{top, lu, mid, rl, bot}},
-	'2': {rects: []rect{top, ru, mid, ll, bot}},
-	'3': {rects: []rect{top, ru, rl, bot, {glyphW * 0.3, midY, glyphW, midY + barH}}},
-	'4': {rects: []rect{lu, mid, ru, rl}},
-	'5': {rects: []rect{lu, mid, rl, bot}, sharp: []rect{top}}, // the square top tells it from S
-	'6': {rects: []rect{top, lu, ll, mid, rl, bot}},
-	'7': {rects: []rect{top, ru, rl}},
-	'8': {rects: []rect{top, lu, ll, ru, rl, mid, bot}},
-	'9': {rects: []rect{top, lu, ru, rl, mid, bot}},
+// glyph returns r's bars and stems relative to the glyph box; sharp ones
+// keep square corners.
+func (st style) glyph(r rune) (rects, sharp []rect) {
+	w, h, b, s := st.w, st.h, st.bar, st.stem
+	my := (h - b) / 2
+	top := rect{0, 0, w, b}
+	mid := rect{0, my, w, my + b}
+	bot := rect{0, h - b, w, h}
+	lu := rect{0, 0, s, my + b}
+	ll := rect{0, my, s, h}
+	ru := rect{w - s, 0, w, my + b}
+	rl := rect{w - s, my, w, h}
+	switch r {
+	case 'S':
+		return []rect{top, lu, mid, rl, bot}, nil
+	case '2':
+		return []rect{top, ru, mid, ll, bot}, nil
+	case '3':
+		return []rect{top, ru, rl, bot, {w * 0.3, my, w, my + b}}, nil
+	case '4':
+		return []rect{lu, mid, ru, rl}, nil
+	case '5':
+		return []rect{lu, mid, rl, bot}, []rect{top} // the square top tells it from S
+	case '6':
+		return []rect{top, lu, ll, mid, rl, bot}, nil
+	case '7':
+		return []rect{top, ru, rl}, nil
+	case '8':
+		return []rect{top, lu, ll, ru, rl, mid, bot}, nil
+	case '9':
+		return []rect{top, lu, ru, rl, mid, bot}, nil
+	}
+	log.Fatalf("no glyph for %q", r)
+	return nil, nil
 }
 
-// labelMask returns the anti-aliased coverage of label on a size-wide icon.
-func labelMask(label string, size int) *image.Alpha {
+type placed struct {
+	st style
+	r  rune
+}
+
+// labelMask returns the anti-aliased coverage of the glyphs on a size-wide icon.
+func labelMask(size int, glyphs ...placed) *image.Alpha {
 	scale := float64(size) / 64 * ss
 	n := size * ss
-	on, sharp := make([]bool, n*n), make([]bool, n*n)
-	for i, r := range label {
-		ox := glyphLeft + float64(i)*(glyphW+glyphGap)
-		for _, rc := range glyphs[r].rects {
-			fillRect(on, n, rc, ox, scale)
+	on := make([]bool, n*n)
+	for _, g := range glyphs {
+		buf, sharp := make([]bool, n*n), make([]bool, n*n)
+		rects, sharpRects := g.st.glyph(g.r)
+		for _, rc := range rects {
+			fillRect(buf, n, rc, g.st, scale)
 		}
-		for _, rc := range glyphs[r].sharp {
-			fillRect(sharp, n, rc, ox, scale)
+		for _, rc := range sharpRects {
+			fillRect(sharp, n, rc, g.st, scale)
+		}
+		// Opening with a diamond cuts convex corners at 45° and keeps concave ones.
+		k := int(math.Round(g.st.chamfer * scale))
+		buf = morph(morph(buf, n, k, true), n, k, false)
+		for i := range on {
+			on[i] = on[i] || buf[i] || sharp[i]
 		}
 	}
-	// Opening with a diamond cuts convex corners at 45° and keeps concave ones.
-	k := int(math.Round(chamfer * scale))
-	on = morph(morph(on, n, k, true), n, k, false)
 
 	m := image.NewAlpha(image.Rect(0, 0, size, size))
 	for y := 0; y < size; y++ {
@@ -159,7 +172,7 @@ func labelMask(label string, size int) *image.Alpha {
 			hits := 0
 			for sy := y * ss; sy < (y+1)*ss; sy++ {
 				for sx := x * ss; sx < (x+1)*ss; sx++ {
-					if on[sy*n+sx] || sharp[sy*n+sx] {
+					if on[sy*n+sx] {
 						hits++
 					}
 				}
@@ -170,10 +183,10 @@ func labelMask(label string, size int) *image.Alpha {
 	return m
 }
 
-func fillRect(buf []bool, n int, r rect, ox, scale float64) {
+func fillRect(buf []bool, n int, r rect, st style, scale float64) {
 	px := func(v float64) int { return int(math.Round(v * scale)) }
-	for y := px(glyphTop + r.y0); y < px(glyphTop+r.y1); y++ {
-		for x := px(ox + r.x0); x < px(ox+r.x1); x++ {
+	for y := px(st.y + r.y0); y < px(st.y+r.y1); y++ {
+		for x := px(st.x + r.x0); x < px(st.x+r.x1); x++ {
 			buf[y*n+x] = true
 		}
 	}

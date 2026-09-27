@@ -386,8 +386,8 @@ Either way, `release.yml`:
    (Linux/macOS/Windows × amd64/arm64) via `build-matrix.yml`.
    The version is stamped into the binary (`simplenvim --version`).
 3. Produces native installers via `package.yml`:
-   `.deb` and `.rpm` (nfpm), Windows `.exe` (Inno Setup),
-   macOS `.dmg` (hdiutil).
+   `.deb` and `.rpm` (nfpm), Windows `.exe` (Inno Setup; `-q` / `/q`
+   installs unattended, like `/VERYSILENT`), macOS `.dmg` (hdiutil).
 4. Generates SHA-256 checksums and GitHub Artifact Attestations
    (supply-chain provenance).
 5. Creates a GitHub Release with all assets attached.
