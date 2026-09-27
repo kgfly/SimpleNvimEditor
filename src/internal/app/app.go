@@ -178,11 +178,13 @@ func (a *App) runWindow(win *gioapp.Window) (bool, error) {
 			a.view = e
 			setWindowIcon(e, a.iconColor)
 			if e.Valid() {
-				// Both hooks patch the native window, which has to
+				// These hooks patch the native window, which has to
 				// happen on the thread that owns it: on Windows that
-				// means swapping the window procedure while its message
-				// pump is parked, not from under it.
+				// means swapping the window procedure, or the class
+				// icon, while its message pump is parked, not from
+				// under it.
 				win.Run(func() {
+					installClassIcon(e, a.iconColor)
 					installDropTarget(e)
 					installCloseHandler(e)
 					installBeepSuppressor(e)
