@@ -2,6 +2,9 @@
 ; Compiled headlessly by package.yml:
 ;   iscc /DMyAppVersion="1.2.3" /DMyAppArch="amd64" packaging/windows/simplenvim.iss
 ;
+; Unattended install: setup.exe -q (or /q, /quiet), same as /VERYSILENT
+; /SUPPRESSMSGBOXES /NORESTART. Other switches (e.g. /DIR=, /TASKS=) pass through.
+;
 ; Unsigned (Phase 1) -- SmartScreen will warn on first run. See the README.
 
 #ifndef MyAppVersion
@@ -88,6 +91,44 @@ Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; \
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
 
 [Code]
+procedure ExitProcess(ExitCode: Integer);
+  external 'ExitProcess@kernel32.dll stdcall';
+
+function IsQuietSwitch(const S: string): Boolean;
+begin
+  Result := (CompareText(S, '/q') = 0) or (CompareText(S, '-q') = 0) or
+    (CompareText(S, '/quiet') = 0) or (CompareText(S, '-quiet') = 0) or
+    (CompareText(S, '--quiet') = 0);
+end;
+
+// Inno Setup can't switch to silent mode after start, so -q / /q relaunches
+// this installer with /VERYSILENT and forwards the remaining arguments.
+function InitializeSetup: Boolean;
+var
+  I, ResultCode: Integer;
+  Quiet: Boolean;
+  Params: string;
+begin
+  Result := True;
+  if WizardSilent then
+    exit;
+  Quiet := False;
+  Params := '';
+  for I := 1 to ParamCount do
+    if IsQuietSwitch(ParamStr(I)) then
+      Quiet := True
+    else
+      Params := Params + ' ' + AddQuotes(ParamStr(I));
+  if not Quiet then
+    exit;
+  if not Exec(ExpandConstant('{srcexe}'),
+      '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' + Params, '',
+      SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    ResultCode := 1;
+  // Returning False would always exit 1; propagate the child's exit code.
+  ExitProcess(ResultCode);
+end;
+
 // Only append to PATH if this exact directory is not already present,
 // so repeat installs do not grow the variable without bound.
 function NeedsAddPath(Param: string): Boolean;
