@@ -22,6 +22,9 @@ There are surprisingly few candidates that meet that bar.
 
 - **It's just Neovim.** A GUI shell around a real `nvim` process
   (`nvim_ui_attach`), not a fork or reimplementation of the editor.
+- Have an innovative way to color-grouped, numbered Dock/taskbar icons: find the
+  instance you want even with 10+ editors running. See
+  [Dock and taskbar icon color](#dock-and-taskbar-icon-color).
 - Cross-platform: Linux, macOS, and Windows.
 - Native window rendering via Gio — no Electron, no embedded browser.
 - Multigrid-aware rendering — window splits and floating windows (like
