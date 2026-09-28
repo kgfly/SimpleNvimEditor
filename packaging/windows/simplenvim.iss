@@ -107,7 +107,7 @@ function InitializeSetup: Boolean;
 var
   I, ResultCode: Integer;
   Quiet: Boolean;
-  Params: string;
+  Params, CmdLine: string;
 begin
   Result := True;
   if WizardSilent then
@@ -121,8 +121,14 @@ begin
       Params := Params + ' ' + AddQuotes(ParamStr(I));
   if not Quiet then
     exit;
-  if not Exec(ExpandConstant('{srcexe}'),
-      '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' + Params, '',
+  // Setup cannot Exec()/ShellExec() its own setup file before the
+  // installation has started: Inno's IsProtectedSrcExe guard makes Exec
+  // return False with ERROR_ACCESS_DENIED when Filename is the source EXE.
+  // Route the relaunch through cmd.exe instead, which also propagates the
+  // child's exit code ("cmd /c prog" returns prog's exit code).
+  CmdLine := '/c ""' + ExpandConstant('{srcexe}') + '"' +
+    ' /VERYSILENT /SUPPRESSMSGBOXES /NORESTART' + Params + '"';
+  if not Exec(ExpandConstant('{cmd}'), CmdLine, '',
       SW_HIDE, ewWaitUntilTerminated, ResultCode) then
     ResultCode := 1;
   // Returning False would always exit 1; propagate the child's exit code.
