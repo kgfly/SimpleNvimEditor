@@ -87,6 +87,20 @@ func HitTest(windows []Placement, row, col int) (grid, gridRow, gridCol int, ok 
 	return 0, 0, 0, false
 }
 
+// DragTarget converts a base-grid cell to coordinates on pressGrid, the grid
+// a held mouse button went down on, even when the cell lies outside it. Nvim
+// resolves a drag against that grid; sending it to the window under the
+// pointer instead misplaces a dragged separator. Falls back to grid 1 if
+// pressGrid is no longer placed.
+func DragTarget(windows []Placement, pressGrid, row, col int) (grid, gridRow, gridCol int) {
+	for _, p := range windows {
+		if p.GridID == pressGrid {
+			return pressGrid, row - p.Row, col - p.Col
+		}
+	}
+	return 1, row, col
+}
+
 // applyWinPos handles a normal (non-floating) window placement update:
 // [grid, win, start_row, start_col, width, height].
 func (s *State) applyWinPos(args []interface{}) {

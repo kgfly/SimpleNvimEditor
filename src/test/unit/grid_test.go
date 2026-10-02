@@ -190,3 +190,34 @@ func TestGridScrollZeroDeltaIsNoop(t *testing.T) {
 		t.Fatalf("zero-delta scroll mutated content: %+v", g.Data)
 	}
 }
+
+func TestGridLineTracksWrapFlagThroughScroll(t *testing.T) {
+	s := uistate.New()
+	s.Apply(batch(
+		ev("grid_resize", args(1, 4, 3)),
+		ev("grid_line", args(1, 0, 0, []interface{}{[]interface{}{"a", 0, 4}}, true)),
+		ev("grid_line", args(1, 1, 0, []interface{}{[]interface{}{"b", 0, 4}}, false)),
+	))
+	if w := s.Snapshot().Grids[1].Wrapped; len(w) != 3 || !w[0] || w[1] {
+		t.Fatalf("Wrapped = %v, want [true false false]", w)
+	}
+
+	// Full-width scroll up by one: row 0 takes row 1's flag, row 1 takes row 2's.
+	s.Apply(batch(ev("grid_scroll", args(1, 0, 3, 0, 4, 1, 0))))
+	if w := s.Snapshot().Grids[1].Wrapped; w[0] || w[1] || w[2] {
+		t.Fatalf("after scroll Wrapped = %v, want all false", w)
+	}
+
+	s.Apply(batch(
+		ev("grid_line", args(1, 1, 0, []interface{}{[]interface{}{"c", 0, 4}}, true)),
+		ev("grid_scroll", args(1, 0, 3, 0, 4, -1, 0)),
+	))
+	if w := s.Snapshot().Grids[1].Wrapped; w[1] || !w[2] {
+		t.Fatalf("after scroll down Wrapped = %v, want row 2 wrapped", w)
+	}
+
+	s.Apply(batch(ev("grid_clear", args(1))))
+	if w := s.Snapshot().Grids[1].Wrapped; w[2] {
+		t.Fatalf("grid_clear kept wrap flags: %v", w)
+	}
+}
