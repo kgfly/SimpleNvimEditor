@@ -13,10 +13,19 @@ import (
 )
 
 // HoverLink identifies a visible URL cell range to decorate for the current
-// frame. EndCol is exclusive.
+// frame. EndCol is exclusive. More holds the link's other rows when it
+// soft-wraps across several grid rows.
 type HoverLink struct {
 	Active   bool
 	GridID   int
+	Row      int
+	StartCol int
+	EndCol   int
+	More     []HoverSpan
+}
+
+// HoverSpan is one row's [StartCol, EndCol) slice of a wrapped hover link.
+type HoverSpan struct {
 	Row      int
 	StartCol int
 	EndCol   int
@@ -87,13 +96,20 @@ func drawGrid(gtx layout.Context, fonts Fonts, glyphs *glyphCache, hv uistate.Hi
 				drawText(gtx, glyphs, x+i*cw, y, cell.Text, fg)
 			}
 		}
-		if hover.Active && hover.GridID == gv.ID && hover.Row == row {
-			drawHoverUnderline(gtx, fonts.Metrics, hv, cells, origin, hover)
+		if hover.Active && hover.GridID == gv.ID {
+			if hover.Row == row {
+				drawHoverUnderline(gtx, fonts.Metrics, hv, cells, origin, HoverSpan{Row: row, StartCol: hover.StartCol, EndCol: hover.EndCol})
+			}
+			for _, span := range hover.More {
+				if span.Row == row {
+					drawHoverUnderline(gtx, fonts.Metrics, hv, cells, origin, span)
+				}
+			}
 		}
 	}
 }
 
-func drawHoverUnderline(gtx layout.Context, metrics Metrics, hv uistate.HighlightView, cells []uistate.Cell, origin image.Point, hover HoverLink) {
+func drawHoverUnderline(gtx layout.Context, metrics Metrics, hv uistate.HighlightView, cells []uistate.Cell, origin image.Point, hover HoverSpan) {
 	start := max(0, hover.StartCol)
 	end := min(len(cells), hover.EndCol)
 	if start >= end {

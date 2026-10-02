@@ -17,6 +17,8 @@ type Grid struct {
 	Rows int
 	Cols int
 	rows [][]Cell
+	// wrapped[r] is grid_line's `wrap` flag: row r continues onto row r+1.
+	wrapped []bool
 }
 
 func newGrid(id int) *Grid {
@@ -41,8 +43,11 @@ func newGrid(id int) *Grid {
 // scrolling forces Nvim to resend those rows.
 func (g *Grid) resize(rows, cols int) {
 	old := g.rows
+	oldWrapped := g.wrapped
 	g.Rows, g.Cols = rows, cols
 	g.rows = make([][]Cell, rows)
+	g.wrapped = make([]bool, rows)
+	copy(g.wrapped, oldWrapped)
 	for r := range g.rows {
 		g.rows[r] = make([]Cell, cols)
 		for c := range g.rows[r] {
@@ -62,15 +67,20 @@ func (g *Grid) clear() {
 			g.rows[r][c] = Cell{Text: " "}
 		}
 	}
+	clear(g.wrapped)
 }
 
 // setLine decodes and applies one `grid_line` row update: a run-length
 // encoded list of [text], [text, hl_id], or [text, hl_id, repeat] tuples
 // starting at column colStart. An omitted hl_id repeats the previous cell's
-// highlight, per the protocol spec.
-func (g *Grid) setLine(row, colStart int, cells []interface{}) {
+// highlight, per the protocol spec. wrap is the event's optional trailing
+// flag (Nvim 0.10+) marking a row that soft-wraps onto the next one.
+func (g *Grid) setLine(row, colStart int, cells []interface{}, wrap bool) {
 	if row < 0 || row >= len(g.rows) {
 		return
+	}
+	if row < len(g.wrapped) {
+		g.wrapped[row] = wrap
 	}
 	col := colStart
 	lastHl := 0
@@ -134,24 +144,43 @@ func (g *Grid) scroll(top, bot, left, right, rowsBy int) {
 			g.rows[row][c] = Cell{Text: " "}
 		}
 	}
+	// Wrap flags describe whole rows, so they only travel with full-width scrolls.
+	fullWidth := left == 0 && right == g.Cols && len(g.wrapped) == len(g.rows)
+	if !fullWidth {
+		for r := top; r < bot && r < len(g.wrapped); r++ {
+			g.wrapped[r] = false
+		}
+	}
 
 	if rowsBy > 0 {
 		// Content moves up: row r takes what used to be at r+rowsBy.
 		for r := top; r < bot-rowsBy; r++ {
 			src := r + rowsBy
 			copy(g.rows[r][left:right], g.rows[src][left:right])
+			if fullWidth {
+				g.wrapped[r] = g.wrapped[src]
+			}
 		}
 		for r := max(bot-rowsBy, top); r < bot; r++ {
 			blank(r, left, right)
+			if fullWidth {
+				g.wrapped[r] = false
+			}
 		}
 	} else {
 		n := -rowsBy
 		for r := bot - 1; r >= top+n; r-- {
 			src := r - n
 			copy(g.rows[r][left:right], g.rows[src][left:right])
+			if fullWidth {
+				g.wrapped[r] = g.wrapped[src]
+			}
 		}
 		for r := top; r < min(top+n, bot); r++ {
 			blank(r, left, right)
+			if fullWidth {
+				g.wrapped[r] = false
+			}
 		}
 	}
 }
@@ -162,6 +191,8 @@ type GridView struct {
 	Rows int
 	Cols int
 	Data [][]Cell
+	// Wrapped[r] reports that row r soft-wraps onto row r+1 (may be shorter than Data).
+	Wrapped []bool
 }
 
 func (g *Grid) view() GridView {
@@ -169,7 +200,7 @@ func (g *Grid) view() GridView {
 	for r, row := range g.rows {
 		data[r] = append([]Cell(nil), row...)
 	}
-	return GridView{ID: g.ID, Rows: g.Rows, Cols: g.Cols, Data: data}
+	return GridView{ID: g.ID, Rows: g.Rows, Cols: g.Cols, Data: data, Wrapped: append([]bool(nil), g.wrapped...)}
 }
 
 func (s *State) applyGridResize(args []interface{}) {
@@ -191,7 +222,8 @@ func (s *State) applyGridLine(args []interface{}) {
 		}
 		id, row, col := toInt(t[0]), toInt(t[1]), toInt(t[2])
 		cells := toSlice(t[3])
-		s.gridLocked(id).setLine(row, col, cells)
+		wrap := len(t) > 4 && toBool(t[4])
+		s.gridLocked(id).setLine(row, col, cells, wrap)
 	}
 }
 

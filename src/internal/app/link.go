@@ -21,6 +21,14 @@ var visibleURLPattern = regexp.MustCompile(`(?i)https?://[A-Z0-9._~%!$&()*+,;=:@
 type visibleLink struct {
 	target           string
 	startCol, endCol int
+	// other rows of a link that soft-wraps across grid rows.
+	more []render.HoverSpan
+}
+
+type cellPos struct{ row, col int }
+
+func (p cellPos) before(q cellPos) bool {
+	return p.row < q.row || (p.row == q.row && p.col < q.col)
 }
 
 func (a *App) handleLinkPointer(e pointer.Event, modifiers key.Modifiers, snap uistate.Snapshot, grid, row, col int) bool {
@@ -73,25 +81,61 @@ func urlAt(grid uistate.GridView, row, col int) (string, bool) {
 	return link.target, ok
 }
 
+func isWrapped(grid uistate.GridView, row int) bool {
+	return row >= 0 && row < len(grid.Wrapped) && row+1 < len(grid.Data) && grid.Wrapped[row]
+}
+
+// contentStart skips the blank cells (number/sign gutter, breakindent) that
+// precede the text on a soft-wrapped continuation row.
+func contentStart(cells []uistate.Cell) int {
+	start := 0
+	for start < len(cells) && (cells[start].Text == " " || cells[start].Text == "") {
+		start++
+	}
+	return start
+}
+
+// linkAt finds the URL under (row, col). A URL that Nvim soft-wrapped onto
+// following rows is joined back together; the leading blanks of each
+// continuation row (number/sign gutter, breakindent) are skipped.
 func linkAt(grid uistate.GridView, row, col int) (visibleLink, bool) {
 	if row < 0 || row >= len(grid.Data) || col < 0 || col >= len(grid.Data[row]) {
 		return visibleLink{}, false
 	}
 
+	first, last := row, row
+	for isWrapped(grid, first-1) {
+		first--
+	}
+	for isWrapped(grid, last) {
+		last++
+	}
+
 	var text strings.Builder
-	byteColumns := make([]int, 0, len(grid.Data[row]))
-	for cellCol, cell := range grid.Data[row] {
-		text.WriteString(cell.Text)
-		for range len(cell.Text) {
-			byteColumns = append(byteColumns, cellCol)
+	var bytePos []cellPos
+	for r := first; r <= last; r++ {
+		cells := grid.Data[r]
+		start := 0
+		if r > first {
+			start = contentStart(cells)
+		}
+		if r == row && col < start {
+			return visibleLink{}, false
+		}
+		for cellCol := start; cellCol < len(cells); cellCol++ {
+			text.WriteString(cells[cellCol].Text)
+			for range len(cells[cellCol].Text) {
+				bytePos = append(bytePos, cellPos{r, cellCol})
+			}
 		}
 	}
 
+	at := cellPos{row, col}
 	line := text.String()
 	for _, match := range visibleURLPattern.FindAllStringIndex(line, -1) {
 		target := strings.TrimRight(line[match[0]:match[1]], ".,;:!?)]}")
 		end := match[0] + len(target)
-		if end <= match[0] || byteColumns[match[0]] > col || byteColumns[end-1] < col {
+		if end <= match[0] || at.before(bytePos[match[0]]) || bytePos[end-1].before(at) {
 			continue
 		}
 		parsed, err := url.Parse(target)
@@ -99,13 +143,31 @@ func linkAt(grid uistate.GridView, row, col int) (visibleLink, bool) {
 			(!strings.EqualFold(parsed.Scheme, "http") && !strings.EqualFold(parsed.Scheme, "https")) {
 			continue
 		}
-		return visibleLink{
-			target:   target,
-			startCol: byteColumns[match[0]],
-			endCol:   byteColumns[end-1] + 1,
-		}, true
+		return linkSpans(grid, target, bytePos[match[0]], bytePos[end-1], row), true
 	}
 	return visibleLink{}, false
+}
+
+// linkSpans splits the cell range [from, to] into per-row spans; the span on
+// row is reported in startCol/endCol and the rest in more.
+func linkSpans(grid uistate.GridView, target string, from, to cellPos, row int) visibleLink {
+	link := visibleLink{target: target}
+	for r := from.row; r <= to.row; r++ {
+		start, end := contentStart(grid.Data[r]), len(grid.Data[r])
+		if r == from.row {
+			start = from.col
+		}
+		if r == to.row {
+			end = to.col + 1
+		}
+		span := render.HoverSpan{Row: r, StartCol: start, EndCol: end}
+		if r == row {
+			link.startCol, link.endCol = span.StartCol, span.EndCol
+		} else {
+			link.more = append(link.more, span)
+		}
+	}
+	return link
 }
 
 func (a *App) hoveredLink(snap uistate.Snapshot) render.HoverLink {
@@ -130,6 +192,7 @@ func (a *App) hoveredLink(snap uistate.Snapshot) render.HoverLink {
 		Row:      row,
 		StartCol: link.startCol,
 		EndCol:   link.endCol,
+		More:     link.more,
 	}
 }
 

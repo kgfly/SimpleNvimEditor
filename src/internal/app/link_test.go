@@ -50,6 +50,42 @@ func TestLinkAtReportsCellRange(t *testing.T) {
 	}
 }
 
+func TestLinkAtJoinsSoftWrappedRows(t *testing.T) {
+	// "  1 " gutter, URL wraps onto a continuation row with a blank gutter.
+	grid := wrappedGridView([]string{
+		"  1 see https://exa",
+		"    mple.com/a/b ok",
+	}, []bool{true, false})
+	const want = "https://example.com/a/b"
+
+	for _, at := range []struct{ row, col int }{{0, 10}, {1, 6}} {
+		link, ok := linkAt(grid, at.row, at.col)
+		if !ok || link.target != want {
+			t.Fatalf("linkAt(%d, %d) = %+v, %v; want %q", at.row, at.col, link, ok, want)
+		}
+	}
+
+	link, _ := linkAt(grid, 1, 6)
+	if link.startCol != 4 || link.endCol != 16 {
+		t.Fatalf("hovered row span = [%d, %d), want [4, 16)", link.startCol, link.endCol)
+	}
+	if len(link.more) != 1 || link.more[0].Row != 0 || link.more[0].StartCol != 8 || link.more[0].EndCol != 19 {
+		t.Fatalf("other spans = %+v, want row 0 [8, 19)", link.more)
+	}
+
+	if _, ok := linkAt(grid, 1, 2); ok {
+		t.Fatal("linkAt() matched a gutter cell on the continuation row")
+	}
+	if _, ok := linkAt(grid, 1, 17); ok {
+		t.Fatal("linkAt() matched text after the URL")
+	}
+
+	unwrapped := wrappedGridView([]string{"  1 see https://exa", "    mple.com/a/b ok"}, nil)
+	if got, _ := urlAt(unwrapped, 0, 10); got != "https://exa" {
+		t.Fatalf("unwrapped rows were joined: %q", got)
+	}
+}
+
 func TestLinkModifierHeld(t *testing.T) {
 	tests := []struct {
 		name string
@@ -287,4 +323,14 @@ func gridView(line string) uistate.GridView {
 		cells = append(cells, uistate.Cell{Text: string(char)})
 	}
 	return uistate.GridView{Rows: 1, Cols: len(cells), Data: [][]uistate.Cell{cells}}
+}
+
+func wrappedGridView(lines []string, wrapped []bool) uistate.GridView {
+	view := uistate.GridView{Rows: len(lines), Wrapped: wrapped}
+	for _, line := range lines {
+		row := gridView(line).Data[0]
+		view.Cols = max(view.Cols, len(row))
+		view.Data = append(view.Data, row)
+	}
+	return view
 }

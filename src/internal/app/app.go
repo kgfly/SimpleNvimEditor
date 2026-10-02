@@ -95,6 +95,9 @@ type App struct {
 	// mouse-held state.
 	mouseBtn string
 
+	// pressGrid is the grid the held button was pressed on (0 when none).
+	pressGrid int
+
 	// linkPress records that a modified primary-button press was consumed
 	// to open a URL, so its drag/release events do not reach Nvim alone.
 	linkPress bool
@@ -540,12 +543,17 @@ func (a *App) onPointer(e pointer.Event) {
 	// button is still held, corrupting its mouse state.
 	if e.Kind == pointer.Press {
 		a.mouseBtn = button
+		a.pressGrid = grid
 	}
 	if button == "" && e.Kind == pointer.Release {
 		button = a.mouseBtn
 	}
+	if (e.Kind == pointer.Drag || e.Kind == pointer.Release) && a.pressGrid != 0 {
+		grid, gridRow, gridCol = uistate.DragTarget(snap.Windows, a.pressGrid, row, col)
+	}
 	if e.Kind == pointer.Release {
 		a.mouseBtn = ""
+		a.pressGrid = 0
 	}
 
 	if button == "" || action == "" {
