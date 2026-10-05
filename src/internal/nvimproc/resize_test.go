@@ -13,7 +13,7 @@ func newResizeProbe() (*Process, func() [][2]int) {
 	var mu sync.Mutex
 	var got [][2]int
 
-	p := &Process{cmds: make(chan func(), 1024)}
+	p := &Process{slow: newFuncQueue()}
 	p.resizeFn = func(cols, rows int) {
 		mu.Lock()
 		defer mu.Unlock()
@@ -30,12 +30,11 @@ func newResizeProbe() (*Process, func() [][2]int) {
 // drain runs every command currently queued, in order.
 func drain(p *Process) {
 	for {
-		select {
-		case fn := <-p.cmds:
-			fn()
-		default:
+		fn, ok := p.slow.tryPop()
+		if !ok {
 			return
 		}
+		fn()
 	}
 }
 
