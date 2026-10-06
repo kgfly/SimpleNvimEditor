@@ -219,7 +219,7 @@ This only works on issues **you** opened, and `/reopen` must start the comment.
 
 ## Developer Documentation
 
-- [`doc/developer.md`](doc/developer.md) — everything about building,
+- [`docs/developer.md`](docs/developer.md) — everything about building,
   running, testing, and contributing.
 
 ## License

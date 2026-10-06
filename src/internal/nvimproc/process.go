@@ -330,16 +330,16 @@ func (p *Process) forceQuitUnlessPrompting() {
 }
 
 // prompting reports whether Nvim answered nvim_get_mode within timeout
-// while waiting at a prompt: mode "r" (hit-enter), "rm" (more), "r?"
+// while waiting at a prompt: mode "r" (hit-enter), "rm" (more), or "r?"
 // (confirm -- reported with blocking=false while it runs inside our RPC
-// request), or anything else marked blocking. No answer (event loop wedged)
-// or an ordinary mode (busy in something that never let the quit request
-// run) both mean the user cannot get out through Nvim.
+// request). The blocking flag alone does not identify a prompt: Nvim can
+// also be waiting for a synchronous command to finish. No answer (event
+// loop wedged) or an ordinary mode means the user cannot get out through Nvim.
 func (p *Process) prompting(timeout time.Duration) bool {
 	res := make(chan bool, 1)
 	go func() {
 		m, err := p.Nvim.Mode()
-		res <- err == nil && (m.Blocking || strings.HasPrefix(m.Mode, "r"))
+		res <- err == nil && strings.HasPrefix(m.Mode, "r")
 	}()
 	select {
 	case blocking := <-res:
