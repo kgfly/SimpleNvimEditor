@@ -110,15 +110,11 @@ func Spawn(command string, extraArgs, nvimArgs []string, cols, rows int) (*Proce
 	args = append(args, nvimArgs...)
 
 	// Cancelling ctx makes exec.CommandContext kill the child: the only
-	// handle go-client exposes on the process, and the way out when Nvim
-	// itself has stopped responding.
+	// Cancelling ctx kills the child when Nvim stops responding. On Linux,
+	// it also closes the RPC read pipe so a child of Nvim cannot hold Serve
+	// open after Nvim has been killed.
 	ctx, kill := context.WithCancel(context.Background())
-	v, err := nvim.NewChildProcess(
-		nvim.ChildProcessCommand(command),
-		nvim.ChildProcessArgs(args...),
-		nvim.ChildProcessServe(false),
-		nvim.ChildProcessContext(ctx),
-	)
+	v, waitChild, err := startChild(ctx, command, args)
 	if err != nil {
 		kill()
 		return nil, fmt.Errorf("spawn nvim: %w", err)
@@ -139,6 +135,8 @@ func Spawn(command string, extraArgs, nvimArgs []string, cols, rows int) (*Proce
 
 	go func() {
 		p.ServeErr = v.Serve()
+		waitChild()
+		kill()
 		// Closing the queue lets forwardRedraw drain what is left and
 		// then return, which closes Redraw and ends the consumer's range
 		// loop. Without this both goroutines would block forever.
