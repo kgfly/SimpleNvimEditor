@@ -310,3 +310,97 @@ func TestRequestQuitPromptStillAcceptsInput(t *testing.T) {
 		t.Fatalf("nvim did not exit within %s of answering the prompt", drainTimeout)
 	}
 }
+
+// quitTwice is the user pressing Cmd+Q, waiting, then pressing it again.
+func quitTwice(proc *nvimproc.Process) {
+	proc.RequestQuit()
+	time.Sleep(1500 * time.Millisecond)
+	proc.RequestQuit()
+}
+
+// A Nvim whose event loop is wedged (runaway Lua) never runs `confirm qa`;
+// a repeated quit must still get the user out.
+func TestRepeatedQuitKillsWedgedNvim(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "wedged.txt")
+	if err := os.WriteFile(file, []byte("x\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	proc := spawnIsolated(t, file, 40, 10)
+	s := uistate.New()
+	drainUntilFlush(t, proc, s)
+
+	go func() { _ = proc.Nvim.Command("lua while true do end") }()
+	time.Sleep(200 * time.Millisecond)
+	// Keystrokes pile up behind the hung input call; the UI must not care.
+	for i := 0; i < 5000; i++ {
+		proc.Input("j")
+	}
+
+	quitTwice(proc)
+	select {
+	case <-proc.Exited:
+	case <-time.After(drainTimeout):
+		t.Fatalf("wedged nvim still running %s after a repeated quit", drainTimeout)
+	}
+}
+
+// Busy in a long synchronous call: Nvim still answers fast requests, but
+// the quit command cannot run until the call returns.
+func TestRepeatedQuitKillsBusyNvim(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "busy.txt")
+	if err := os.WriteFile(file, []byte("x\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	proc := spawnIsolated(t, file, 40, 10)
+	s := uistate.New()
+	drainUntilFlush(t, proc, s)
+
+	go func() { _ = proc.Nvim.Command("call system('sleep 60')") }()
+	time.Sleep(200 * time.Millisecond)
+
+	quitTwice(proc)
+	select {
+	case <-proc.Exited:
+	case <-time.After(drainTimeout):
+		t.Fatalf("busy nvim still running %s after a repeated quit", drainTimeout)
+	}
+}
+
+// The escalation must not destroy unsaved work while Nvim is asking the
+// user what to do with it.
+func TestRepeatedQuitSparesSaveChangesPrompt(t *testing.T) {
+	dir := t.TempDir()
+	file := filepath.Join(dir, "unsaved.txt")
+	if err := os.WriteFile(file, []byte("keep\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	proc := spawnIsolated(t, file, 60, 10)
+	s := uistate.New()
+	waitForLine(t, proc, s, "keep")
+
+	proc.Input("Aedited<Esc>")
+	waitForLine(t, proc, s, "keepedited")
+
+	proc.RequestQuit()
+	waitForLine(t, proc, s, "[Y]es, (N)o, (C)ancel:")
+	time.Sleep(1500 * time.Millisecond)
+	proc.RequestQuit()
+
+	select {
+	case <-proc.Exited:
+		t.Fatal("repeated quit killed nvim while it was asking to save changes")
+	case <-time.After(3 * time.Second):
+	}
+
+	proc.Input("n")
+	select {
+	case <-proc.Exited:
+	case <-time.After(drainTimeout):
+		t.Fatalf("nvim did not exit within %s of answering the prompt", drainTimeout)
+	}
+}

@@ -5,12 +5,24 @@
 package nvimproc
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/neovim/go-client/nvim"
 )
+
+// forceQuitAfter is how long a quit request may stay unanswered before a
+// repeated one (a second Cmd+Q / Alt+F4) is allowed to kill Nvim.
+const forceQuitAfter = time.Second
+
+// probeTimeout bounds the nvim_get_mode liveness probe. nvim_get_mode is a
+// "fast" request Nvim answers even mid-prompt, so silence means its event
+// loop is not running at all.
+const probeTimeout = time.Second
 
 // UIOptions are the `nvim_ui_attach` options this client always requests.
 // ext_linegrid is not listed because modern Nvim enables it unconditionally
@@ -49,7 +61,7 @@ type Process struct {
 	// error rather than a clean shutdown.
 	ServeErr error
 
-	// cmds serializes every outgoing call (Input, InputMouse, Resize,
+	// cmds serializes outgoing calls (Input, InputMouse, OpenFile,
 	// RequestQuit) through a single goroutine. This matters: each of
 	// those methods is called from Gio's UI goroutine and previously
 	// fired its RPC call on its own throwaway goroutine, which let
@@ -57,8 +69,21 @@ type Process struct {
 	// order (visible as scrambled keystrokes when typing quickly). A
 	// single FIFO queue guarantees they reach Nvim in the order the user
 	// produced them, while still keeping the caller (e.g. the input
-	// handler) non-blocking.
-	cmds chan func()
+	// handler) non-blocking -- the queue is unbounded (see funcQueue), so
+	// even a completely hung Nvim can never stall the UI goroutine.
+	cmds *funcQueue
+
+	// slow runs requests Nvim defers while it waits for input (hit-enter,
+	// more-prompt): nvim_ui_try_resize, nvim_command. On cmds they would block
+	// the very <CR> that dismisses the prompt, freezing the editor.
+	slow *funcQueue
+
+	// quitAt is when the outstanding `confirm qa` was requested (Unix
+	// nanoseconds), or 0 when none is in flight. See RequestQuit.
+	quitAt atomic.Int64
+
+	// kill terminates the child process. See forceQuit.
+	kill context.CancelFunc
 
 	// resizeMu guards the coalescing state below. A window drag produces
 	// far more resizes than Nvim can usefully apply; see Resize.
@@ -84,12 +109,14 @@ func Spawn(command string, extraArgs, nvimArgs []string, cols, rows int) (*Proce
 	args = append(args, extraArgs...)
 	args = append(args, nvimArgs...)
 
-	v, err := nvim.NewChildProcess(
-		nvim.ChildProcessCommand(command),
-		nvim.ChildProcessArgs(args...),
-		nvim.ChildProcessServe(false),
-	)
+	// Cancelling ctx makes exec.CommandContext kill the child: the only
+	// Cancelling ctx kills the child when Nvim stops responding. On Linux,
+	// it also closes the RPC read pipe so a child of Nvim cannot hold Serve
+	// open after Nvim has been killed.
+	ctx, kill := context.WithCancel(context.Background())
+	v, waitChild, err := startChild(ctx, command, args)
 	if err != nil {
+		kill()
 		return nil, fmt.Errorf("spawn nvim: %w", err)
 	}
 
@@ -98,21 +125,29 @@ func Spawn(command string, extraArgs, nvimArgs []string, cols, rows int) (*Proce
 		Redraw: make(chan [][]interface{}),
 		queue:  newRedrawQueue(),
 		Exited: make(chan struct{}),
-		cmds:   make(chan func(), 1024),
+		cmds:   newFuncQueue(),
+		slow:   newFuncQueue(),
+		kill:   kill,
 	}
 	p.registerHandlers()
 	go p.runCmds()
+	go p.runSlow()
 
 	go func() {
 		p.ServeErr = v.Serve()
+		waitChild()
+		kill()
 		// Closing the queue lets forwardRedraw drain what is left and
 		// then return, which closes Redraw and ends the consumer's range
 		// loop. Without this both goroutines would block forever.
 		p.queue.close()
+		p.cmds.close()
+		p.slow.close()
 		close(p.Exited)
 	}()
 
 	if err := v.AttachUI(cols, rows, UIOptions); err != nil {
+		p.forceQuit()
 		return nil, fmt.Errorf("attach ui: %w", err)
 	}
 	return p, nil
@@ -147,8 +182,17 @@ func (p *Process) forwardRedraw() {
 
 // runCmds executes queued outgoing calls one at a time, in submission
 // order, for the lifetime of the process.
-func (p *Process) runCmds() {
-	for fn := range p.cmds {
+func (p *Process) runCmds() { run(p.cmds) }
+
+// runSlow executes deferrable requests in order; see the slow field.
+func (p *Process) runSlow() { run(p.slow) }
+
+func run(q *funcQueue) {
+	for {
+		fn, ok := q.pop()
+		if !ok {
+			return
+		}
 		fn()
 	}
 }
@@ -158,13 +202,13 @@ func (p *Process) runCmds() {
 // blocking); Nvim surfaces real problems (like a bad mapping) through its
 // own UI anyway.
 func (p *Process) Input(keys string) {
-	p.cmds <- func() { _, _ = p.Nvim.Input(keys) }
+	p.cmds.push(func() { _, _ = p.Nvim.Input(keys) })
 }
 
 // InputMouse forwards a mouse event. See `:h nvim_input_mouse` for the
 // button/action/modifier vocabulary.
 func (p *Process) InputMouse(button, action, modifier string, grid, row, col int) {
-	p.cmds <- func() { _ = p.Nvim.InputMouse(button, action, modifier, grid, row, col) }
+	p.cmds.push(func() { _ = p.Nvim.InputMouse(button, action, modifier, grid, row, col) })
 }
 
 // Resize asks Nvim to change the size of the base grid.
@@ -188,13 +232,13 @@ func (p *Process) Resize(cols, rows int) {
 		return
 	}
 	p.resizeQueued = true
-	p.cmds <- func() {
+	p.slow.push(func() {
 		p.resizeMu.Lock()
 		cols, rows := p.pendingCols, p.pendingRows
 		p.resizeQueued = false
 		p.resizeMu.Unlock()
 		p.applyResize(cols, rows)
-	}
+	})
 }
 
 // applyResize performs the actual resize round trip. It is a field-backed
@@ -221,9 +265,10 @@ func (p *Process) OpenFile(path string) {
 	if path == "" {
 		return
 	}
-	p.cmds <- func() {
-		_ = p.Nvim.Command("edit " + vimEscape(path))
-	}
+	// Handed off via cmds so it still lands after input already queued.
+	p.cmds.push(func() {
+		p.slow.push(func() { _ = p.Nvim.Command("edit " + vimEscape(path)) })
+	})
 }
 
 // vimEscape quotes path for use inside a Vim command line by deferring to
@@ -237,13 +282,76 @@ func vimEscape(path string) string {
 // RequestQuit asks Nvim to quit, honoring unsaved-changes prompts. Because
 // this client doesn't yet render Nvim's confirmation dialog specially, an
 // interactive "Save changes?" prompt will appear as normal grid text.
+//
+// A repeated request while an earlier one has gone unanswered for
+// forceQuitAfter escalates: unless Nvim is waiting at a prompt for the
+// user's answer, it is killed. Without that, a Nvim that is wedged (a
+// runaway Lua loop, a synchronous system() call that never returns) would
+// hold the window open forever, since `confirm qa` can never run.
 func (p *Process) RequestQuit() {
+	now := time.Now().UnixNano()
+	for {
+		at := p.quitAt.Load()
+		if at != 0 {
+			if time.Duration(now-at) >= forceQuitAfter {
+				go p.forceQuitUnlessPrompting()
+			}
+			return
+		}
+		if p.quitAt.CompareAndSwap(0, now) {
+			break
+		}
+	}
 	// Queued like any other command so it lands after the input already
 	// on its way, but run off the queue: `confirm qa` does not return
 	// until the user answers the prompt, and their answer is keyboard
 	// input that travels through this very queue. Waiting here would
 	// deadlock the editor on its own question.
-	p.cmds <- func() {
-		go func() { _ = p.Nvim.Command("confirm qa") }()
+	p.cmds.push(func() {
+		go func() {
+			_ = p.Nvim.Command("confirm qa")
+			// Answered (e.g. (C)ancel): a later request starts afresh
+			// rather than counting as a repeat.
+			p.quitAt.Store(0)
+		}()
+	})
+}
+
+// forceQuitUnlessPrompting kills Nvim unless it is blocked waiting for the
+// user -- a "Save changes?" or hit-enter prompt, which the user can answer
+// and which must not be destroyed along with their unsaved work.
+func (p *Process) forceQuitUnlessPrompting() {
+	if p.prompting(probeTimeout) {
+		return
 	}
+	p.forceQuit()
+}
+
+// prompting reports whether Nvim answered nvim_get_mode within timeout
+// while waiting at a prompt: mode "r" (hit-enter), "rm" (more), or "r?"
+// (confirm -- reported with blocking=false while it runs inside our RPC
+// request). The blocking flag alone does not identify a prompt: Nvim can
+// also be waiting for a synchronous command to finish. No answer (event
+// loop wedged) or an ordinary mode means the user cannot get out through Nvim.
+func (p *Process) prompting(timeout time.Duration) bool {
+	res := make(chan bool, 1)
+	go func() {
+		m, err := p.Nvim.Mode()
+		res <- err == nil && strings.HasPrefix(m.Mode, "r")
+	}()
+	select {
+	case blocking := <-res:
+		return blocking
+	case <-time.After(timeout):
+		return false
+	}
+}
+
+// forceQuit kills the child and closes the RPC connection. Either one ends
+// Serve, which closes Exited and Redraw and so the window.
+func (p *Process) forceQuit() {
+	if p.kill != nil {
+		p.kill()
+	}
+	go func() { _ = p.Nvim.Close() }()
 }

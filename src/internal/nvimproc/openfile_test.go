@@ -54,10 +54,10 @@ func TestVimEscapeQuotesSingleQuotes(t *testing.T) {
 // TestOpenFileIgnoresEmptyPath ensures an empty request never reaches Nvim,
 // where ":edit" with no argument would reload the current buffer.
 func TestOpenFileIgnoresEmptyPath(t *testing.T) {
-	p := &Process{cmds: make(chan func(), 1)}
+	p := &Process{cmds: newFuncQueue()}
 	p.OpenFile("")
-	if len(p.cmds) != 0 {
-		t.Errorf("OpenFile(\"\") queued %d commands, want 0", len(p.cmds))
+	if n := p.cmds.len(); n != 0 {
+		t.Errorf("OpenFile(\"\") queued %d commands, want 0", n)
 	}
 }
 
@@ -65,9 +65,9 @@ func TestOpenFileIgnoresEmptyPath(t *testing.T) {
 // serialized channel as every other outgoing call, so it cannot race ahead
 // of pending input.
 func TestOpenFileQueuesCommand(t *testing.T) {
-	p := &Process{cmds: make(chan func(), 1)}
+	p := &Process{cmds: newFuncQueue()}
 	p.OpenFile("/tmp/x.txt")
-	if len(p.cmds) != 1 {
-		t.Fatalf("OpenFile queued %d commands, want 1", len(p.cmds))
+	if n := p.cmds.len(); n != 1 {
+		t.Fatalf("OpenFile queued %d commands, want 1", n)
 	}
 }
