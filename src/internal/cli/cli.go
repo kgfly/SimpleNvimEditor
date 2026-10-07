@@ -25,6 +25,7 @@ func Parse(args []string) (Options, error) {
 	flags := flag.NewFlagSet("simplenvim", flag.ContinueOnError)
 	flags.SetOutput(&usage)
 	flags.BoolVar(&opts.ShowVersion, "version", false, "print version and exit")
+	flags.BoolVar(&opts.ShowVersion, "v", false, "shorthand for --version")
 	flags.StringVar(&opts.NvimPath, "nvim", "", "path to the nvim executable (overrides config file)")
 	flags.BoolVar(&opts.Maximized, "maximized", false, "start the editor window maximized")
 	flags.Usage = func() {
