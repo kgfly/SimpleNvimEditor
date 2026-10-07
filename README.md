@@ -3,49 +3,34 @@
 A simple, fast, native Neovim GUI written in [Go](https://go.dev/), using the
 [Gio](https://gioui.org) UI toolkit with a minimalist design.
 
-## Why another Neovim GUI?
-
-- **Neovim-qt** is not actively maintained. I once filed a bug that took
-  several months to get the maintainer's attention. Because the maintainer
-  is busy with other projects, I ended up fixing it myself and submitting
-  a pull request — which then took several more months to get merged.
-- **goneovim** depends on a Qt binding that has been deprecated. Because
-  of this, the maintainer has decided to abandon the project.
-- **Neovide** has too many dependencies and is too heavy for my needs.
-- Many other GUIs cannot run on all three platforms (macOS, Linux,
-  Windows) or have other significant limitations.
-
-As a minimalist, I just want a simple, lightweight GUI that works on all my machines.
-There are surprisingly few candidates that meet that bar.
+SimpleNvimEditor gives you the Neovim you already know in a lightweight GUI
+that works across macOS, Linux, and Windows. It keeps the interface focused on
+your editor while adding native windows, GPU rendering, and practical desktop
+features.
 
 ## What it offers
 
-- **It's just Neovim.** A GUI shell around a real `nvim` process
-  (`nvim_ui_attach`), not a fork or reimplementation of the editor.
-- Have an innovative way to color-grouped, numbered Dock/taskbar icons: find the
-  instance you want even with 10+ editors running. See
+- **Your Neovim setup.** Runs a real `nvim` process through `nvim_ui_attach`,
+  so your configuration, plugins, and workflows come along.
+- **Easy-to-find windows.** An innotative, color-grouped, numbered Dock and taskbar icons help
+  you pick out the right instance when you have many editors open. See
   [Dock and taskbar icon color](#dock-and-taskbar-icon-color).
-- Cross-platform: Linux, macOS, and Windows.
-- Native window rendering via Gio — no Electron, no embedded browser.
-- Multigrid-aware rendering — window splits and floating windows (like
-  completion popups) are drawn wherever Nvim actually places them.
-- Cursor shape (block/beam/underline) synced live from Nvim's mode info.
-- Keyboard and mouse input, including scroll wheel, mapped faithfully to
-  Nvim's own input protocol.
-- Voice dictation input support.
-- Open one or more files by dragging them from the desktop file manager into
-  the editor window.
-- Open visible HTTP and HTTPS links in the default browser with Cmd-click on
-  macOS or Ctrl-click on Linux and Windows.
-- A small, plain `config.toml` for font and Nvim-launch settings.
-- Nerd Font support.
-- GPU rendering from Go/Gio.
-- Can serve as a terminal with `simplenvim --maximized -- -c term -c startinsert`,
-  so you do not need separate terminal software.
-- Can serve as a GUI diff tool wtih `simplenvim --maximized -- -c 'set splitright | e ~/1.txt | vsp ~/2.txt | windo diffthis'`, 
-  so you do not need sperate GUI diff tool
+- **Native, cross-platform rendering.** Gio draws the window on macOS, Linux,
+  and Windows with GPU acceleration and Nerd Font support.
+- **Accurate editor layout.** Multigrid rendering places splits and floating
+  windows (such as completion popups) where Neovim puts them. Cursor shapes
+  update with Neovim's mode.
+- **Familiar input.** Keyboard, mouse, scroll wheel, and voice dictation input
+  work with Neovim. Drag files into the window to open them, or Cmd-click
+  (macOS) or Ctrl-click (Linux and Windows) visible HTTP and HTTPS links to
+  open them in your browser.
+- **Simple configuration.** An optional `config.toml` lets you choose your font
+  and Neovim launch settings.
+- **More ways to work.** Run a terminal with
+  `simplenvim --maximized -- -c term -c startinsert`, or use Neovim's diff mode
+  as a GUI diff tool.
 
-Simple and pure: no bloat, no bundled plugin marketplace, and no telemetry.
+No bundled plugin marketplace or telemetry: just a focused home for Neovim.
 
 ## Installing
 
