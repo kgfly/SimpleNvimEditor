@@ -39,6 +39,18 @@ func TestParseAcceptsApplicationFlagsAndFiles(t *testing.T) {
 	}
 }
 
+func TestParseVersionFlags(t *testing.T) {
+	for _, flag := range []string{"--version", "-version", "-v", "--v"} {
+		opts, err := cli.Parse([]string{flag})
+		if err != nil {
+			t.Fatalf("Parse(%q): %v", flag, err)
+		}
+		if !opts.ShowVersion {
+			t.Fatalf("Parse(%q): ShowVersion = false, want true", flag)
+		}
+	}
+}
+
 func TestParseRejectsNvimFlagsBeforeBoundary(t *testing.T) {
 	if _, err := cli.Parse([]string{"-c", "term"}); err == nil {
 		t.Fatal("Parse accepted Nvim flag before --")

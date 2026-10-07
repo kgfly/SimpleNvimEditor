@@ -147,7 +147,8 @@ produces text, so this setting has no effect there.
 ## Command-line arguments
 
 Use `--maximized` to start with a maximized window, or `--nvim <path>` to use
-a specific Neovim executable. File arguments are forwarded to Neovim. Put
+a specific Neovim executable. `--version` (or `-v`) prints the version and
+exits. File arguments are forwarded to Neovim. Put
 `--` before Neovim flags or commands so SimpleNvimEditor does not interpret
 them as its own options:
 

@@ -201,6 +201,7 @@ and numbered icons working:
 |---|---|
 | `-nvim /path/to/nvim` | Overrides the `nvim` executable to launch (default: whatever the config file says, or plain `nvim` resolved via `PATH`). |
 | `--maximized` | Starts the editor window maximized. |
+| `--version`, `-v` | Prints the version and exits. |
 
 Positional arguments open files as usual. To forward Nvim flags or commands,
 put them after `--`; they are passed to Nvim unchanged and in order:
