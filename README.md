@@ -32,6 +32,25 @@ features.
 
 No bundled plugin marketplace or telemetry: just a focused home for Neovim.
 
+## Typical Usage
+### Text Editor
+![image](./docs/images/text-editor.jpg)
+
+### IDE
+(With LSP On)
+
+![image](./docs/images/ide.jpg)
+
+### Terminal
+![iimage](./docs/images/terminal.jpg)
+
+### Diff tool
+![image](./docs/images/diff-tool.jpg)
+
+### Github PR Review Tool 
+(With gh cli and https://github.com/kgfly/gh.nvim)
+![image](./docs/images/git-pr-review.jpg)
+
 ## Installing
 
 Grab a build for your platform from the
@@ -148,6 +167,8 @@ how do you find which is for what?
 
 A: the dock or taskbar icon color tells them
 apart. The "S" stays the same and only the background changes:
+
+![image](./docs/images/grouped-numbered-taskbar.jpg)
 
 - **Black** is the default.
 - **Any other color** can be chosen by setting `SIMPLENVIM_BG_<COLOR>` before
