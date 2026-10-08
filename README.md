@@ -32,6 +32,18 @@ features.
 
 No bundled plugin marketplace or telemetry: just a focused home for Neovim.
 
+## Typical Usage
+### Text Editor
+![image](./docs/images/text-editor.jpg)
+
+### IDE (with LSP On)
+![image](./docs/images/ide.jpg)
+
+### Terminal
+![iimage](./docs/images/terminal.jpg)
+
+### Diff tool
+![image](./docs/images/diff-tool.jpg)
 ## Installing
 
 Grab a build for your platform from the
