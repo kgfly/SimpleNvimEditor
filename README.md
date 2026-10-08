@@ -36,7 +36,9 @@ No bundled plugin marketplace or telemetry: just a focused home for Neovim.
 ### Text Editor
 ![image](./docs/images/text-editor.jpg)
 
-### IDE (with LSP On)
+### IDE
+(With LSP On)
+
 ![image](./docs/images/ide.jpg)
 
 ### Terminal
@@ -44,6 +46,10 @@ No bundled plugin marketplace or telemetry: just a focused home for Neovim.
 
 ### Diff tool
 ![image](./docs/images/diff-tool.jpg)
+
+### Github PR Review Tool 
+(With gh cli and https://github.com/kgfly/gh.nvim)
+
 ## Installing
 
 Grab a build for your platform from the
