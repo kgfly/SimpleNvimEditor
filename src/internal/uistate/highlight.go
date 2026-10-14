@@ -35,6 +35,8 @@ type HlAttr struct {
 	Underline  bool
 	Undercurl  bool
 	Strike     bool
+	// Blend is the 0-100 transparency level (100 = fully transparent).
+	Blend int
 }
 
 // HighlightTable tracks the highlight attribute table and the two default
@@ -91,6 +93,9 @@ func (h *HighlightTable) applyHlAttrDefine(args []interface{}) {
 		attr.Underline = toBool(rgbAttr["underline"])
 		attr.Undercurl = toBool(rgbAttr["undercurl"])
 		attr.Strike = toBool(rgbAttr["strikethrough"])
+		if v, ok := rgbAttr["blend"]; ok {
+			attr.Blend = toInt(v)
+		}
 
 		h.attrs[id] = attr
 	}
