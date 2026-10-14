@@ -38,7 +38,7 @@ func main() {
 		cfg.Nvim.Command = opts.NvimPath
 	}
 
-	a := editorapp.New(cfg, opts.NvimArgs, editorapp.Options{Maximized: opts.Maximized})
+	a := editorapp.New(cfg, opts.NvimArgs, editorapp.Options{Maximized: opts.Maximized, Version: version})
 
 	// Subscribe to "open this document" requests from the desktop
 	// environment before the event loop starts. On macOS the request for

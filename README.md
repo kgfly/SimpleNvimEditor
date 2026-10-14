@@ -152,7 +152,8 @@ produces text, so this setting has no effect there.
 
 Use `--maximized` to start with a maximized window, or `--nvim <path>` to use
 a specific Neovim executable. `--version` (or `-v`) prints the version and
-exits. File arguments are forwarded to Neovim. Put
+exits; on macOS, where the app is usually not on `$PATH`, the version is also
+shown under **SimpleNvimEditor → About SimpleNvimEditor**. File arguments are forwarded to Neovim. Put
 `--` before Neovim flags or commands so SimpleNvimEditor does not interpret
 them as its own options:
 
