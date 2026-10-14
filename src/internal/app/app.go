@@ -112,6 +112,8 @@ type App struct {
 // Options controls how the editor window starts.
 type Options struct {
 	Maximized bool
+	// Version is shown in the macOS "About SimpleNvimEditor" panel.
+	Version string
 }
 
 // New creates an App that starts Nvim with the given arguments (may be empty).
@@ -192,6 +194,7 @@ func (a *App) runWindow(win *gioapp.Window) (bool, error) {
 					installCloseHandler(e)
 					installBeepSuppressor(e)
 					installSideButtons(e)
+					installAppMenu(a.options.Version)
 				})
 			}
 		case gioapp.DestroyEvent:
