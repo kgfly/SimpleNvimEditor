@@ -126,7 +126,7 @@ func rasterize(t *testing.T, px image.Point, draw func(gtx layout.Context)) *ima
 // compared against, so an optimization that quietly changed the output
 // cannot pass unnoticed.
 func drawUncached(gtx layout.Context, fonts Fonts, snap uistate.Snapshot) {
-	defFg, defBg := snap.Highlight.DefaultColors()
+	_, defBg := snap.Highlight.DefaultColors()
 	size := gtx.Constraints.Max
 	paint.FillShape(gtx.Ops, defBg, clip.Rect(image.Rect(0, 0, size.X, size.Y)).Op())
 
@@ -156,7 +156,7 @@ func drawUncached(gtx layout.Context, fonts Fonts, snap uistate.Snapshot) {
 			}
 		}
 	}
-	drawCursor(gtx, fonts, snap, defFg)
+	drawCursor(gtx, fonts, newGlyphCache(gtx, fonts), snap)
 }
 
 // TestCachedRenderMatchesUncached is the correctness proof for the glyph

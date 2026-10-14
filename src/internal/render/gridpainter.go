@@ -34,7 +34,7 @@ type HoverSpan struct {
 // Frame draws one full frame of the editor: the base grid, every placed
 // split/float grid on top of it, and finally the cursor.
 func Frame(gtx layout.Context, fonts Fonts, snap uistate.Snapshot, hovered ...HoverLink) {
-	defFg, defBg := snap.Highlight.DefaultColors()
+	_, defBg := snap.Highlight.DefaultColors()
 	size := gtx.Constraints.Max
 	paint.FillShape(gtx.Ops, defBg, clip.Rect(image.Rect(0, 0, size.X, size.Y)).Op())
 	var hover HoverLink
@@ -58,7 +58,7 @@ func Frame(gtx layout.Context, fonts Fonts, snap uistate.Snapshot, hovered ...Ho
 		drawGrid(gtx, fonts, glyphs, snap.Highlight, gv, origin, hover)
 	}
 
-	drawCursor(gtx, fonts, snap, defFg)
+	drawCursor(gtx, fonts, glyphs, snap)
 }
 
 // drawGrid paints every row of gv, offset by origin pixels. Cells are
@@ -142,29 +142,37 @@ func drawText(gtx layout.Context, glyphs *glyphCache, x, y int, text string, fg 
 }
 
 // drawCursor paints a block/beam/underline cursor per the active mode's
-// ModeInfo. Text-under-cursor punch-through and blink/smooth-move animation
-// are not implemented yet (see IMPLEMENTATION_PLAN.md Phase 2).
-func drawCursor(gtx layout.Context, fonts Fonts, snap uistate.Snapshot, defFg color.NRGBA) {
+// ModeInfo. A block cursor redraws the character beneath it in the cursor's
+// text color, like a terminal's inverse-video cursor, so the character stays
+// readable. Blink/smooth-move animation is not implemented.
+func drawCursor(gtx layout.Context, fonts Fonts, glyphs *glyphCache, snap uistate.Snapshot) {
 	origin, ok := GridOrigin(snap, snap.Cursor.GridID, fonts.Metrics)
 	if !ok {
 		return
 	}
+	info := snap.CurrentModeInfo()
+	// A fully blended cursor is how plugins (e.g. smear-cursor) hide the
+	// real cursor while drawing their own.
+	if info.AttrID != 0 && snap.Highlight.Attr(info.AttrID).Blend >= 100 {
+		return
+	}
+
 	cw, ch := fonts.Metrics.CellWidth, fonts.Metrics.CellHeight
 	x := origin.X + snap.Cursor.Col*cw
 	y := origin.Y + snap.Cursor.Row*ch
 
-	info := snap.CurrentModeInfo()
-	col := cursorColor(snap.Highlight, info.AttrID, defFg)
+	cell, cellWidth := cursorCell(snap)
+	blockCol, textCol := cursorColors(snap.Highlight, info.AttrID, cell.HlID)
 	pct := info.CellPercentage
 	if pct <= 0 {
 		pct = 100
 	}
 
-	rect := image.Rect(x, y, x+cw, y+ch)
+	rect := image.Rect(x, y, x+cw*cellWidth, y+ch)
 	switch info.CursorShape {
 	case "horizontal":
 		h := ch * pct / 100
-		rect = image.Rect(x, y+ch-h, x+cw, y+ch)
+		rect = image.Rect(x, y+ch-h, x+cw*cellWidth, y+ch)
 	case "vertical":
 		w := cw * pct / 100
 		if w < 1 {
@@ -172,17 +180,46 @@ func drawCursor(gtx layout.Context, fonts Fonts, snap uistate.Snapshot, defFg co
 		}
 		rect = image.Rect(x, y, x+w, y+ch)
 	}
-	paint.FillShape(gtx.Ops, col, clip.Rect(rect).Op())
+	paint.FillShape(gtx.Ops, blockCol, clip.Rect(rect).Op())
+
+	if info.CursorShape != "horizontal" && info.CursorShape != "vertical" && cell.Text != "" && cell.Text != " " {
+		drawText(gtx, glyphs, x, y, cell.Text, textCol)
+	}
 }
 
-// cursorColor resolves the fill color for the cursor block. Per `:h
-// mode_info_set`, an attr_id of 0 means "use the default colors, swapped".
-func cursorColor(hv uistate.HighlightView, attrID int, defFg color.NRGBA) color.NRGBA {
-	if attrID == 0 {
-		return defFg
+// cursorCell returns the cell under the cursor and how many columns it
+// spans (2 for a double-width character, whose second cell has empty text).
+func cursorCell(snap uistate.Snapshot) (uistate.Cell, int) {
+	gv, ok := snap.Grids[snap.Cursor.GridID]
+	if !ok || snap.Cursor.Row < 0 || snap.Cursor.Row >= len(gv.Data) {
+		return uistate.Cell{}, 1
 	}
-	_, bg := hv.Resolve(attrID)
-	return bg
+	cells := gv.Data[snap.Cursor.Row]
+	col := snap.Cursor.Col
+	if col < 0 || col >= len(cells) {
+		return uistate.Cell{}, 1
+	}
+	if cells[col].Text != "" && col+1 < len(cells) && cells[col+1].Text == "" {
+		return cells[col], 2
+	}
+	return cells[col], 1
+}
+
+// cursorColors resolves the cursor's fill color and the color of the text
+// drawn on top of it. Per `:h mode_info_set`, an attr_id of 0 means "swap the
+// colors", which we apply to the cell under the cursor (as terminals do).
+// Colors the cursor highlight leaves unset fall back the same way, so e.g.
+// `Cursor guibg=red` still gets readable text.
+func cursorColors(hv uistate.HighlightView, attrID, cellHlID int) (block, text color.NRGBA) {
+	cellFg, cellBg := hv.Resolve(cellHlID)
+	if attrID == 0 {
+		return cellFg, cellBg
+	}
+	attr := hv.Attr(attrID)
+	if attr.Reverse {
+		return attr.Foreground.NRGBA(cellFg), attr.Background.NRGBA(cellBg)
+	}
+	return attr.Background.NRGBA(cellFg), attr.Foreground.NRGBA(cellBg)
 }
 
 // GridOrigin returns the top-left pixel position of the given grid id
