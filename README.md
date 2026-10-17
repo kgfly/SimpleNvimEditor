@@ -169,6 +169,12 @@ how do you find which is for what?
 A: the dock or taskbar icon color tells them
 apart. The "S" stays the same and only the background changes:
 
+On Mac dock:
+
+![image](./docs/images/grouped-numbered-taskbar-mac.png)
+
+On Linux/Windows taskbar:
+
 ![image](./docs/images/grouped-numbered-taskbar.jpg)
 
 - **Black** is the default.
