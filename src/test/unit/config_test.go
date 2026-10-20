@@ -78,6 +78,7 @@ func TestLoadOverlaysFileOnTopOfDefaults(t *testing.T) {
 [editor]
 font_size = 20
 font_family = "Consolas"
+title_prefix = true
 
 [nvim]
 command = "/opt/bin/nvim"
@@ -99,6 +100,9 @@ extra_args = ["--clean"]
 	}
 	if cfg.Editor.FontFamily != "Consolas" {
 		t.Errorf("FontFamily = %q, want %q", cfg.Editor.FontFamily, "Consolas")
+	}
+	if !cfg.Editor.TitlePrefix {
+		t.Errorf("TitlePrefix = false, want true")
 	}
 	if cfg.Nvim.Command != "/opt/bin/nvim" {
 		t.Errorf("Nvim.Command = %q, want %q", cfg.Nvim.Command, "/opt/bin/nvim")

@@ -64,6 +64,46 @@ func TestClaimIconHelper(t *testing.T) {
 	time.Sleep(time.Minute)
 }
 
+func TestTitlePrefix(t *testing.T) {
+	tests := []struct {
+		color string
+		slot  int
+		want  string
+	}{
+		{"red", 1, "RE1 "},
+		{"blue", 9, "BU9 "},
+		{"black", 2, "BK2 "},
+		{"green", 3, "GN3 "},
+		{"gray", 4, "GY4 "},
+		{"red", 0, "RE "},
+		{"teal", 1, ""},
+	}
+	for _, tt := range tests {
+		if got := titlePrefix(tt.color, tt.slot); got != tt.want {
+			t.Errorf("titlePrefix(%q, %d) = %q, want %q", tt.color, tt.slot, got, tt.want)
+		}
+	}
+	for _, c := range iconColors {
+		if titlePrefix(c, 1) == "" {
+			t.Errorf("no title prefix for icon color %q", c)
+		}
+	}
+}
+
+func TestWindowTitle(t *testing.T) {
+	tests := []struct{ prefix, title, want string }{
+		{"", "term: ~/x", "term: ~/x"},
+		{"", "", ""},
+		{"RE1 ", "term: ~/x", "RE1 term: ~/x"},
+		{"RE1 ", "", "RE1 SimpleNvimEditor"},
+	}
+	for _, tt := range tests {
+		if got := windowTitle(tt.prefix, tt.title); got != tt.want {
+			t.Errorf("windowTitle(%q, %q) = %q, want %q", tt.prefix, tt.title, got, tt.want)
+		}
+	}
+}
+
 func TestClaimIconAcrossProcesses(t *testing.T) {
 	switch runtime.GOOS {
 	case "windows", "linux", "darwin":
@@ -97,11 +137,11 @@ func TestClaimIconAcrossProcesses(t *testing.T) {
 	}
 
 	first, got := start()
-	if got != group {
-		t.Fatalf("first instance = %q, want %q", got, group)
+	if got != group+" 1" {
+		t.Fatalf("first instance = %q, want %q", got, group+" 1")
 	}
-	if _, got := start(); got != group+"_2" {
-		t.Fatalf("second instance = %q, want %q", got, group+"_2")
+	if _, got := start(); got != group+"_2 2" {
+		t.Fatalf("second instance = %q, want %q", got, group+"_2 2")
 	}
 
 	// A killed instance's slot is freed by the OS; macOS frees it
@@ -109,12 +149,12 @@ func TestClaimIconAcrossProcesses(t *testing.T) {
 	kill(first)
 	for i := 0; ; i++ {
 		cmd, got := start()
-		if got == group {
+		if got == group+" 1" {
 			break
 		}
 		kill(cmd)
 		if i == 20 {
-			t.Fatalf("after kill = %q, want %q", got, group)
+			t.Fatalf("after kill = %q, want %q", got, group+" 1")
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
