@@ -247,6 +247,9 @@ This only works on issues **you** opened, and `/reopen` must start the comment.
 - [`docs/developer.md`](docs/developer.md) — everything about building,
   running, testing, and contributing.
 
+## Maintainer
+Maintainers are welcome. If you want to be a maintainer, please let me know by raising a github issue.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
