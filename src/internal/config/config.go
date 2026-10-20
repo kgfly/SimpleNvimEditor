@@ -39,6 +39,10 @@ type EditorConfig struct {
 	// and why macOS is the only platform where turning it off is
 	// meaningful (it costs you Option-composed characters like "å").
 	AltIsMeta *bool `toml:"alt_is_meta"`
+	// TitlePrefix prepends the icon color code and instance number, e.g.
+	// "RE1 ", to the window title of editors started with a
+	// SIMPLENVIM_BG_<COLOR> variable.
+	TitlePrefix bool `toml:"title_prefix"`
 }
 
 // NvimConfig controls how the backend Nvim process is located and launched.

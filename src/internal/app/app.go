@@ -68,6 +68,9 @@ type App struct {
 	iconColor string
 	// numberIcon says whether Run numbers this instance; see startupIcon.
 	numberIcon bool
+	// titlePrefix, e.g. "RE1 ", is prepended to the window title when
+	// editor.title_prefix is enabled; see titlePrefix.
+	titlePrefix string
 
 	// metric is the pixel density the cached cell Metrics were measured
 	// at, so a move to a differently-scaled monitor can be detected; see
@@ -152,7 +155,12 @@ func (a *App) Run(win *gioapp.Window) error {
 	}
 
 	if a.numberIcon {
-		a.iconColor = claimIcon(a.iconColor)
+		color := a.iconColor
+		var slot int
+		a.iconColor, slot = claimIcon(color)
+		if a.cfg.Editor.TitlePrefix {
+			a.titlePrefix = titlePrefix(color, slot)
+		}
 	}
 	setAppIdentity(a.iconColor)
 	for {
@@ -245,8 +253,8 @@ func (a *App) layout(gtx layout.Context) {
 	a.drainSideButtons()
 
 	snap := a.state.Snapshot()
-	if snap.Title != a.title {
-		a.title = snap.Title
+	if title := windowTitle(a.titlePrefix, snap.Title); title != a.title {
+		a.title = title
 		if a.title != "" {
 			a.win.Option(gioapp.Title(a.title))
 			setWindowTitle(a.view, a.title)

@@ -129,6 +129,7 @@ if it's missing, or if any field is left out:
 font_size = 14
 font_family = "monospace"  # set to your preferred font, e.g. "Hack Nerd Font Mono"
 alt_is_meta = true         # send Alt/Option chords to Nvim as <A-...>
+title_prefix = false       # prefix the window title with color + number, e.g. "RE1 "
 
 [nvim]
 command = "nvim"           # path or PATH-resolved name
@@ -201,6 +202,16 @@ not numbered. To number them too, set `SIMPLENVIM_BG_DEFAULT`, which (like
 ```sh
 SIMPLENVIM_BG_DEFAULT=1 simplenvim ~/test.txt
 ```
+
+To tell them apart in window title bars too, set `title_prefix = true` under
+`[editor]` in `config.toml`. The title of a numbered editor then starts with
+a two-letter color code and its number, e.g. `RE1 term: ~/src` for the first
+red editor (`RE ` without a number from the 10th on). Before Neovim sets a
+title, the window shows `RE1 SimpleNvimEditor`. The codes are `BU` blue, `GN`
+green, `YE` yellow, `RE` red, `OR` orange, `PU` purple, `PI` pink, `BR`
+brown, `BK` black, `WH` white and `GY` gray. Editors without
+`SIMPLENVIM_BG_*` keep their plain title. The prefix also shows wherever the
+OS shows the window title, such as the taskbar, Alt-Tab and Mission Control.
 
 Platform notes:
 
