@@ -4,21 +4,21 @@ import "strconv"
 
 // colorCodes are the two-letter title prefixes for each icon color.
 var colorCodes = map[string]string{
-	"blue":   "BU",
-	"green":  "GN",
-	"yellow": "YE",
-	"red":    "RE",
-	"orange": "OR",
-	"purple": "PU",
-	"pink":   "PI",
-	"brown":  "BR",
-	"black":  "BK",
-	"white":  "WH",
-	"gray":   "GY",
+	"blue":   "bu",
+	"green":  "gn",
+	"yellow": "ye",
+	"red":    "re",
+	"orange": "or",
+	"purple": "pu",
+	"pink":   "pi",
+	"brown":  "br",
+	"black":  "bk",
+	"white":  "wh",
+	"gray":   "gy",
 }
 
 // titlePrefix returns the window-title prefix for an instance of color in
-// slot, e.g. "RE1 ", or "RE " when the instance has no number.
+// slot, e.g. "re1 ", or "re " when the instance has no number.
 func titlePrefix(color string, slot int) string {
 	code, ok := colorCodes[color]
 	if !ok {

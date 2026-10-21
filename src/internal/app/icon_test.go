@@ -70,12 +70,12 @@ func TestTitlePrefix(t *testing.T) {
 		slot  int
 		want  string
 	}{
-		{"red", 1, "RE1 "},
-		{"blue", 9, "BU9 "},
-		{"black", 2, "BK2 "},
-		{"green", 3, "GN3 "},
-		{"gray", 4, "GY4 "},
-		{"red", 0, "RE "},
+		{"red", 1, "re1 "},
+		{"blue", 9, "bu9 "},
+		{"black", 2, "bk2 "},
+		{"green", 3, "gn3 "},
+		{"gray", 4, "gy4 "},
+		{"red", 0, "re "},
 		{"teal", 1, ""},
 	}
 	for _, tt := range tests {
@@ -94,8 +94,8 @@ func TestWindowTitle(t *testing.T) {
 	tests := []struct{ prefix, title, want string }{
 		{"", "term: ~/x", "term: ~/x"},
 		{"", "", ""},
-		{"RE1 ", "term: ~/x", "RE1 term: ~/x"},
-		{"RE1 ", "", "RE1 SimpleNvimEditor"},
+		{"re1 ", "term: ~/x", "re1 term: ~/x"},
+		{"re1 ", "", "re1 SimpleNvimEditor"},
 	}
 	for _, tt := range tests {
 		if got := windowTitle(tt.prefix, tt.title); got != tt.want {
