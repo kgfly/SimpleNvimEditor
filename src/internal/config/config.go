@@ -40,7 +40,7 @@ type EditorConfig struct {
 	// meaningful (it costs you Option-composed characters like "å").
 	AltIsMeta *bool `toml:"alt_is_meta"`
 	// TitlePrefix prepends the icon color code and instance number, e.g.
-	// "RE1 ", to the window title of editors started with a
+	// "re1 ", to the window title of editors started with a
 	// SIMPLENVIM_BG_<COLOR> variable.
 	TitlePrefix bool `toml:"title_prefix"`
 }

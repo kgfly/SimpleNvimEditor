@@ -68,7 +68,7 @@ type App struct {
 	iconColor string
 	// numberIcon says whether Run numbers this instance; see startupIcon.
 	numberIcon bool
-	// titlePrefix, e.g. "RE1 ", is prepended to the window title when
+	// titlePrefix, e.g. "re1 ", is prepended to the window title when
 	// editor.title_prefix is enabled; see titlePrefix.
 	titlePrefix string
 
