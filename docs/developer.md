@@ -195,6 +195,19 @@ and numbered icons working:
   empty) when `DISPLAY` is available, where the window's own icon is used.
   Set `SIMPLENVIM_WAYLAND=1` to stay on Wayland.
 
+### Icons
+
+`src/internal/app/icons/icon_bg_<color>.png` are the hand-made base icons;
+`icon_bg_<color>_<n>.png` (n = 2 to 99) are drawn from them by
+`src/internal/app/icongen` and committed. After changing the drawing, run
+`go generate ./internal/app` from `src/`; `TestIconsUpToDate` fails until
+the committed icons match.
+
+For Linux packages, `packaging/linux/make-assets.sh` installs the default
+`simplenvim` icon at 16 to 512 px for menus and software centers, and every
+other icon at 64 px only (the size it's drawn at; docks scale it), together
+with a hidden `.desktop` entry per icon.
+
 ### Command-line flags
 
 | Flag | Description |

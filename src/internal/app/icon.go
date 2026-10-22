@@ -91,8 +91,9 @@ func setAppIdentity(color string) {
 	}
 }
 
-// retagWindow gives the window the desktop identity of icon after :Sslot
-// renumbered it; setWindowIcon has already changed the icon itself.
+// retagWindow gives the window the desktop identity of icon after
+// :Simplenvimslot renumbered it; setWindowIcon has already changed the icon
+// itself.
 func retagWindow(win *gioapp.Window, view any, icon string) {
 	switch runtime.GOOS {
 	case "linux", "freebsd", "openbsd":

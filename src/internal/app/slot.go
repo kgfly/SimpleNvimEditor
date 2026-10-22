@@ -7,7 +7,7 @@ import (
 
 // maxSlot is the highest instance number shown on the icon; later
 // instances of a color group use the group's plain icon.
-const maxSlot = 9
+const maxSlot = 99
 
 // heldSlots maps each slot this process owns to the function releasing it.
 var (
