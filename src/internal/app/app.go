@@ -68,6 +68,8 @@ type App struct {
 	iconColor string
 	// numberIcon says whether Run numbers this instance; see startupIcon.
 	numberIcon bool
+	// slot is the instance number, which :Sslot can change; see sslot.go.
+	slot slotState
 	// titlePrefix, e.g. "re1 ", is prepended to the window title when
 	// editor.title_prefix is enabled; see titlePrefix.
 	titlePrefix string
@@ -158,6 +160,7 @@ func (a *App) Run(win *gioapp.Window) error {
 		color := a.iconColor
 		var slot int
 		a.iconColor, slot = claimIcon(color)
+		a.slot.init(color, slot)
 		if a.cfg.Editor.TitlePrefix {
 			a.titlePrefix = titlePrefix(color, slot)
 		}
@@ -251,6 +254,7 @@ func (a *App) layout(gtx layout.Context) {
 	a.drainOpenRequests()
 	a.drainCloseRequest()
 	a.drainSideButtons()
+	a.applySlot()
 
 	snap := a.state.Snapshot()
 	if title := windowTitle(a.titlePrefix, snap.Title); title != a.title {
@@ -611,6 +615,7 @@ func (a *App) startNvim() {
 		panic(err)
 	}
 	a.proc = proc
+	a.installSslot()
 	go a.pumpRedraw()
 }
 

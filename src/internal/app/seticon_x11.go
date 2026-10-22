@@ -70,7 +70,9 @@ func setWindowIcon(view any, color string) {
 		(*C.ulong)(unsafe.Pointer(&data[0])), C.int(len(data)))
 
 	// Docks that match windows to .desktop files by WM_CLASS show that
-	// file's icon, so a color changed after startup needs a new class.
+	// file's icon, so an icon changed after startup (by :Sslot) needs a
+	// new class. Compared with gioapp.ID, the class the window was created
+	// with, because retagWindow updates that only after this call.
 	if id := appID(color); id != gioapp.ID {
 		cs := C.CString(id)
 		defer C.free(unsafe.Pointer(cs))

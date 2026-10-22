@@ -164,8 +164,8 @@ simplenvim --maximized -- -c term -c 'edit ~/todo.txt'
 
 ## Dock and taskbar icon color
 
-Q: when you have 3 instances running as text editor, 3 instances running as IDE,  3 instances running as diff tool,  3 instances running as terminal, 
-how do you find which is for what?
+Q: when you have 3 instances running as text editor, 3 instances running as IDE,  3 instances running as diff tool,
+3 instances running as terminal, 3 instances runninng as pr review tool, how do you find which is for what?
 
 A: the dock or taskbar icon color tells them
 apart. The "S" stays the same and only the background changes:
@@ -213,17 +213,28 @@ brown, `bk` black, `wh` white and `gy` gray. Editors without
 `SIMPLENVIM_BG_*` keep their plain title. The prefix also shows wherever the
 OS shows the window title, such as the taskbar, Alt-Tab and Mission Control.
 
+To change the number of a running editor, run `:Sslot <n>` in it, e.g.
+`:Sslot 4`. The number must be 1 to 9. The icon and title prefix switch to
+the new number, the color stays the same, and the old number is freed right
+away. A number another editor of the same color already uses is refused.
+`:Sslot` alone shows the current number and the free ones, and Tab after
+`:Sslot ` completes the free numbers. Editors without `SIMPLENVIM_BG_*` aren't
+numbered, so `:Sslot` only reports that. If your own config already defines
+`:Sslot`, yours is kept.
+
 Platform notes:
 
 - **macOS:** the Dock icon changes while the app runs. A pinned Dock tile
   shows the default icon when the app isn't running.
-- **Windows:** each color and number gets its own taskbar group.
+- **Windows:** each color and number gets its own taskbar group, and
+  `:Sslot` moves the window to the group of its new number.
 - **Linux:** icons other than plain black need the icons and hidden `.desktop`
   entries installed by the `.deb`, `.rpm` or Arch package, because docks and
   panels look them up by app ID (`simplenvim-<color>[-<number>]`). On X11 the
   window icon itself also changes, so window-icon taskbars such as
-  xfce4-panel and IceWM show it even without the package. On FreeBSD and
-  OpenBSD editors aren't numbered.
+  xfce4-panel and IceWM show it even without the package. On Wayland an open
+  window's app ID can't change, so `:Sslot` changes only the title prefix
+  there. On FreeBSD and OpenBSD editors aren't numbered.
 
 ## Versioning Rule
 For v"X.Y.Z":

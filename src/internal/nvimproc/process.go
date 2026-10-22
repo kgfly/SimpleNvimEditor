@@ -271,6 +271,20 @@ func (p *Process) OpenFile(path string) {
 	})
 }
 
+// HandleRequest serves rpcrequest(chan, method, ...) calls from Nvim with
+// fn. Each call runs on its own goroutine while Nvim waits for the reply,
+// so fn must not call back into Nvim.
+func (p *Process) HandleRequest(method string, fn interface{}) error {
+	return p.Nvim.RegisterHandler(method, fn)
+}
+
+// ExecLua runs Lua code in Nvim with this client's channel ID as its only
+// argument (`local chan = ...`), so the code can call back with
+// rpcrequest. It goes through slow because Nvim defers it at a prompt.
+func (p *Process) ExecLua(code string) {
+	p.slow.push(func() { _ = p.Nvim.ExecLua(code, nil, p.Nvim.ChannelID()) })
+}
+
 // vimEscape quotes path for use inside a Vim command line by deferring to
 // Nvim's own fnameescape() at evaluation time.
 func vimEscape(path string) string {

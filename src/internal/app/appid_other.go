@@ -3,3 +3,5 @@
 package editorapp
 
 func setProcessAppID(_ string) {}
+
+func setWindowAppID(_ any, _ string) {}

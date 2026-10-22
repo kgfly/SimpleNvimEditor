@@ -3,6 +3,7 @@
 package editorapp
 
 import (
+	"runtime"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -18,6 +19,11 @@ var (
 	procSendNotifyMessageW       = user32.NewProc("SendNotifyMessageW")
 	procSetClassLongPtrW         = user32.NewProc("SetClassLongPtrW")
 	procSetProcessAppUserModelID = shell32.NewProc("SetCurrentProcessExplicitAppUserModelID")
+	procSHGetPropertyStoreForWin = shell32.NewProc("SHGetPropertyStoreForWindow")
+
+	ole32              = syscall.NewLazyDLL("ole32.dll")
+	procCoInitializeEx = ole32.NewProc("CoInitializeEx")
+	procCoUninitialize = ole32.NewProc("CoUninitialize")
 )
 
 const (
@@ -107,12 +113,90 @@ func iconHandle(color string) uintptr {
 	return h
 }
 
+// appUserModelID is the taskbar group of icon.
+func appUserModelID(icon string) string { return "SimpleNvimEditor." + icon }
+
 // setProcessAppID puts this process in its own taskbar group, which also
 // stops a pinned shortcut's icon from replacing the window's.
 func setProcessAppID(color string) {
-	id, err := syscall.UTF16PtrFromString("SimpleNvimEditor." + color)
+	id, err := syscall.UTF16PtrFromString(appUserModelID(color))
 	if err != nil {
 		return
 	}
 	procSetProcessAppUserModelID.Call(uintptr(unsafe.Pointer(id)))
+}
+
+type guid struct {
+	data1        uint32
+	data2, data3 uint16
+	data4        [8]byte
+}
+
+type propertyKey struct {
+	fmtid guid
+	pid   uint32
+}
+
+// propVariant is a PROPVARIANT holding at most a pointer.
+type propVariant struct {
+	vt       uint16
+	reserved [3]uint16
+	val      uintptr
+	_        uintptr
+}
+
+const vtLPWSTR = 31
+
+var (
+	iidIPropertyStore  = guid{0x886D8EEB, 0x8CF2, 0x4446, [8]byte{0x8D, 0x02, 0xCD, 0xBA, 0x1D, 0xBD, 0xCF, 0x99}}
+	pkeyAppUserModelID = propertyKey{guid{0x9F4C2855, 0x9F79, 0x4B39, [8]byte{0xA8, 0xD0, 0xE1, 0xD4, 0x2D, 0xE1, 0xD5, 0xF3}}, 5}
+)
+
+// comObject is a COM interface pointer: its first word is the vtable.
+type comObject struct{ vtbl *[8]uintptr }
+
+// IPropertyStore vtable slots.
+const (
+	propStoreRelease  = 2
+	propStoreSetValue = 6
+	propStoreCommit   = 7
+)
+
+// setWindowAppID moves the window to icon's taskbar group. The process
+// group set at startup no longer fits once :Sslot renumbers the window, and
+// a later editor taking the old number would otherwise share its group.
+// The default icon has no group of its own, so it clears the window's.
+// It must run on the window thread.
+func setWindowAppID(view any, icon string) {
+	ev, ok := view.(gioapp.Win32ViewEvent)
+	if !ok || ev.HWND == 0 {
+		return
+	}
+	// S_OK and S_FALSE need a matching uninitialize; RPC_E_CHANGED_MODE
+	// means COM is already set up on this thread, which is just as good.
+	if hr, _, _ := procCoInitializeEx.Call(0, 2 /* COINIT_APARTMENTTHREADED */); hr == 0 || hr == 1 {
+		defer procCoUninitialize.Call()
+	}
+	var store *comObject
+	hr, _, _ := procSHGetPropertyStoreForWin.Call(ev.HWND,
+		uintptr(unsafe.Pointer(&iidIPropertyStore)), uintptr(unsafe.Pointer(&store)))
+	if hr != 0 || store == nil {
+		return
+	}
+	vtbl, this := store.vtbl, uintptr(unsafe.Pointer(store))
+	defer syscall.SyscallN(vtbl[propStoreRelease], this)
+
+	var v propVariant
+	var id *uint16
+	if icon != defaultIconColor {
+		var err error
+		if id, err = syscall.UTF16PtrFromString(appUserModelID(icon)); err != nil {
+			return
+		}
+		v.vt, v.val = vtLPWSTR, uintptr(unsafe.Pointer(id))
+	}
+	syscall.SyscallN(vtbl[propStoreSetValue], this,
+		uintptr(unsafe.Pointer(&pkeyAppUserModelID)), uintptr(unsafe.Pointer(&v)))
+	syscall.SyscallN(vtbl[propStoreCommit], this)
+	runtime.KeepAlive(id)
 }

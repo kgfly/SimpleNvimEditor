@@ -91,6 +91,23 @@ func setAppIdentity(color string) {
 	}
 }
 
+// retagWindow gives the window the desktop identity of icon after :Sslot
+// renumbered it; setWindowIcon has already changed the icon itself.
+func retagWindow(win *gioapp.Window, view any, icon string) {
+	switch runtime.GOOS {
+	case "linux", "freebsd", "openbsd":
+		// For a window reopened after a cancelled close; Wayland cannot
+		// change the app ID of an existing one.
+		gioapp.ID = appID(icon)
+	case "windows":
+		// Both have to happen on the window thread; see installClassIcon.
+		win.Run(func() {
+			installClassIcon(view, icon)
+			setWindowAppID(view, icon)
+		})
+	}
+}
+
 func decodeIcon(data []byte) *image.NRGBA {
 	src, _, _ := image.Decode(bytes.NewReader(data))
 	img, ok := src.(*image.NRGBA)
