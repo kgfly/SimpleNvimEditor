@@ -2,5 +2,7 @@
 
 package editorapp
 
+const slotsSupported = false
+
 // claimSlot has no process-lifetime named object here, so no numbering.
-func claimSlot(_ string) bool { return false }
+func claimSlot(_ string) (func(), bool) { return nil, false }
