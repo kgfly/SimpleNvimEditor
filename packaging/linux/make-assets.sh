@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Generate the Linux desktop assets from src/internal/app/icons/icon_bg_*.png:
-#   build/linux/share/icons/hicolor/<N>x<N>/apps/simplenvim[-<color>[-<n>]].png
+#   build/linux/share/icons/hicolor/<N>x<N>/apps/simplenvim.png (16 to 512)
+#   build/linux/share/icons/hicolor/64x64/apps/simplenvim-<color>[-<n>].png
 #   build/linux/share/applications/simplenvim-<color>[-<n>].desktop
 # Each icon but the default gets a hidden .desktop entry named after the app
 # ID the editor uses for it (X11 WM_CLASS / Wayland app_id), so docks and
@@ -30,7 +31,12 @@ for src in src/internal/app/icons/icon_bg_*.png; do
   name="simplenvim-${icon//_/-}"
   [ "${icon}" = "black" ] && name="simplenvim"
 
-  for sz in 16 32 48 64 128 256 512; do
+  # Only the default icon shows in menus and software centers, so only it
+  # gets every size. The others show only in docks and taskbars, and the
+  # sources are 64x64 anyway: icon themes scale the closest size they have.
+  sizes=(64)
+  [ "${icon}" = "black" ] && sizes=(16 32 48 64 128 256 512)
+  for sz in "${sizes[@]}"; do
     dir="${OUT}/icons/hicolor/${sz}x${sz}/apps"
     mkdir -p "${dir}"
     "${IM[@]}" "${src}" -resize "${sz}x${sz}" "PNG32:${dir}/${name}.png"

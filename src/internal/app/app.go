@@ -68,7 +68,7 @@ type App struct {
 	iconColor string
 	// numberIcon says whether Run numbers this instance; see startupIcon.
 	numberIcon bool
-	// slot is the instance number, which :Sslot can change; see sslot.go.
+	// slot is the instance number, which :Simplenvimslot can change; see slotcmd.go.
 	slot slotState
 	// titlePrefix, e.g. "re1 ", is prepended to the window title when
 	// editor.title_prefix is enabled; see titlePrefix.
@@ -615,7 +615,7 @@ func (a *App) startNvim() {
 		panic(err)
 	}
 	a.proc = proc
-	a.installSslot()
+	a.installSlotCmd()
 	go a.pumpRedraw()
 }
 

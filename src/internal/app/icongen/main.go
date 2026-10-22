@@ -1,6 +1,7 @@
-// Command icongen writes icon_bg_<color>_<n>.png (n = 2..9): the base
-// icon_bg_<color>.png background with a big blocky <n> on it and a small
-// "s" in the bottom-left corner, in the style of the base icon's "S".
+// Command icongen writes icon_bg_<color>_<n>.png (n = 2..99): the base
+// icon_bg_<color>.png background with a big blocky <n> on it and, below
+// 10, a small "s" in the bottom-left corner, in the style of the base
+// icon's "S".
 //
 //	go run ./icongen [dir [file]]   (dir defaults to icons; file writes only that one)
 package main
@@ -11,6 +12,7 @@ import (
 	"image/color"
 	"image/draw"
 	"image/png"
+	"io"
 	"log"
 	"math"
 	"os"
@@ -28,7 +30,23 @@ type style struct{ x, y, w, h, bar, stem, chamfer float64 }
 var (
 	digitStyle = style{x: 25, y: 8, w: 32, h: 48, bar: 11, stem: 10, chamfer: 4}
 	smallS     = style{x: 7, y: 36, w: 14, h: 20, bar: 4, stem: 4, chamfer: 1.5}
+	// tensStyle and onesStyle place the two centered digits of 10 to 99,
+	// which leave out the small "s" to make room.
+	tensStyle = style{x: 8, y: 8, w: 22, h: 48, bar: 10, stem: 8, chamfer: 3}
+	onesStyle = style{x: 34, y: 8, w: 22, h: 48, bar: 10, stem: 8, chamfer: 3}
 )
+
+// maxN is the highest number drawn on an icon.
+const maxN = 99
+
+// labelGlyphs places n's label: a small "s" and one big digit below 10,
+// just two digits from 10 on.
+func labelGlyphs(n int) []placed {
+	if n < 10 {
+		return []placed{{smallS, 'S'}, {digitStyle, rune('0' + n)}}
+	}
+	return []placed{{tensStyle, rune('0' + n/10)}, {onesStyle, rune('0' + n%10)}}
+}
 
 func main() {
 	dir, only := "icons", ""
@@ -50,20 +68,25 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		bg, fg := iconColors(base)
-		for n := 2; n <= 9; n++ {
+		for n := 2; n <= maxN; n++ {
 			out := path[:len(path)-len(".png")] + fmt.Sprintf("_%d.png", n)
 			if only != "" && filepath.Base(out) != only {
 				continue
 			}
-			img := background(base, bg)
-			mask := labelMask(img.Bounds().Dx(), placed{smallS, 'S'}, placed{digitStyle, rune('0' + n)})
-			draw.DrawMask(img, img.Bounds(), image.NewUniform(fg), image.Point{}, mask, image.Point{}, draw.Over)
-			if err := writePNG(out, img); err != nil {
+			if err := writePNG(out, renderIcon(base, n)); err != nil {
 				log.Fatal(err)
 			}
 		}
 	}
+}
+
+// renderIcon draws the icon for number n on base.
+func renderIcon(base image.Image, n int) *image.NRGBA {
+	bg, fg := iconColors(base)
+	img := background(base, bg)
+	mask := labelMask(img.Bounds().Dx(), labelGlyphs(n)...)
+	draw.DrawMask(img, img.Bounds(), image.NewUniform(fg), image.Point{}, mask, image.Point{}, draw.Over)
+	return img
 }
 
 // iconColors returns the base icon's background (sampled at the top edge)
@@ -118,6 +141,12 @@ func (st style) glyph(r rune) (rects, sharp []rect) {
 	switch r {
 	case 'S':
 		return []rect{top, lu, mid, rl, bot}, nil
+	case '0':
+		return []rect{top, lu, ll, ru, rl, bot}, nil
+	case '1':
+		// A centered stem with a flag and a foot, so it isn't a lone sliver.
+		x := (w - s) / 2
+		return []rect{{x, 0, x + s, h}, {0, 0, x + s, b}, bot}, nil
 	case '2':
 		return []rect{top, ru, mid, ll, bot}, nil
 	case '3':
@@ -231,10 +260,14 @@ func writePNG(path string, img image.Image) error {
 	if err != nil {
 		return err
 	}
-	enc := png.Encoder{CompressionLevel: png.BestCompression}
-	if err := enc.Encode(f, img); err != nil {
+	if err := encodePNG(f, img); err != nil {
 		f.Close()
 		return err
 	}
 	return f.Close()
+}
+
+func encodePNG(w io.Writer, img image.Image) error {
+	enc := png.Encoder{CompressionLevel: png.BestCompression}
+	return enc.Encode(w, img)
 }

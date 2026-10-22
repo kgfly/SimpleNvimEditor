@@ -46,6 +46,7 @@ func TestAppID(t *testing.T) {
 		"blue":    "simplenvim-blue",
 		"green":   "simplenvim-green",
 		"green_9": "simplenvim-green-9",
+		"red_42":  "simplenvim-red-42",
 	} {
 		if got := appID(icon); got != want {
 			t.Errorf("appID(%q) = %q, want %q", icon, got, want)
@@ -72,6 +73,8 @@ func TestTitlePrefix(t *testing.T) {
 	}{
 		{"red", 1, "re1 "},
 		{"blue", 9, "bu9 "},
+		{"blue", 42, "bu42 "},
+		{"blue", 100, "bu "},
 		{"black", 2, "bk2 "},
 		{"green", 3, "gn3 "},
 		{"gray", 4, "gy4 "},

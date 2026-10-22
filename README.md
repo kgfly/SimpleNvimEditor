@@ -191,9 +191,10 @@ On Linux/Windows taskbar:
 
 Editors with the same color are also numbered: the first shows the plain
 icon, the 2nd to 9th show a big "2" to "9" with a small "s" in the corner
-instead of the "S", and the 10th and
-later show the plain icon again. A new editor takes the lowest free number,
-and a number is freed as soon as its editor exits, even if it is killed.
+instead of the "S", the 10th to 99th show just the two digits "10" to "99",
+and the 100th and later show the plain icon again. A new editor takes the
+lowest free number, and a number is freed as soon as its editor exits, even
+if it is killed.
 
 Editors started without `SIMPLENVIM_BG_*` use the default black icon and are
 not numbered. To number them too, set `SIMPLENVIM_BG_DEFAULT`, which (like
@@ -206,35 +207,36 @@ SIMPLENVIM_BG_DEFAULT=1 simplenvim ~/test.txt
 To tell them apart in window title bars too, set `title_prefix = true` under
 `[editor]` in `config.toml`. The title of a numbered editor then starts with
 a two-letter color code and its number, e.g. `re1 term: ~/src` for the first
-red editor (`re ` without a number from the 10th on). Before Neovim sets a
+red editor (`re ` without a number from the 100th on). Before Neovim sets a
 title, the window shows `re1 SimpleNvimEditor`. The codes are `bu` blue, `gn`
 green, `ye` yellow, `re` red, `or` orange, `pu` purple, `pi` pink, `br`
 brown, `bk` black, `wh` white and `gy` gray. Editors without
 `SIMPLENVIM_BG_*` keep their plain title. The prefix also shows wherever the
 OS shows the window title, such as the taskbar, Alt-Tab and Mission Control.
 
-To change the number of a running editor, run `:Sslot <n>` in it, e.g.
-`:Sslot 4`. The number must be 1 to 9. The icon and title prefix switch to
-the new number, the color stays the same, and the old number is freed right
-away. A number another editor of the same color already uses is refused.
-`:Sslot` alone shows the current number and the free ones, and Tab after
-`:Sslot ` completes the free numbers. Editors without `SIMPLENVIM_BG_*` aren't
-numbered, so `:Sslot` only reports that. If your own config already defines
-`:Sslot`, yours is kept.
+To change the number of a running editor, run `:Simplenvimslot <n>` in it,
+e.g. `:Simplenvimslot 4` (or any unique prefix, such as `:Simp 4`). The
+number must be 1 to 99. The icon and title prefix switch to the new
+number, the color stays the same, and the old number is freed right away. A number another editor of the same color already uses is refused.
+`:Simplenvimslot` alone shows the current number and the free ones (runs
+shortened, e.g. `1 2 4-99`), and Tab after `:Simplenvimslot ` completes the
+free numbers. Editors without `SIMPLENVIM_BG_*` aren't numbered, so
+`:Simplenvimslot` only reports that. If your own config already defines
+`:Simplenvimslot`, yours is kept.
 
 Platform notes:
 
 - **macOS:** the Dock icon changes while the app runs. A pinned Dock tile
   shows the default icon when the app isn't running.
 - **Windows:** each color and number gets its own taskbar group, and
-  `:Sslot` moves the window to the group of its new number.
+  `:Simplenvimslot` moves the window to the group of its new number.
 - **Linux:** icons other than plain black need the icons and hidden `.desktop`
   entries installed by the `.deb`, `.rpm` or Arch package, because docks and
   panels look them up by app ID (`simplenvim-<color>[-<number>]`). On X11 the
   window icon itself also changes, so window-icon taskbars such as
   xfce4-panel and IceWM show it even without the package. On Wayland an open
-  window's app ID can't change, so `:Sslot` changes only the title prefix
-  there. On FreeBSD and OpenBSD editors aren't numbered.
+  window's app ID can't change, so `:Simplenvimslot` changes only the title
+  prefix there. On FreeBSD and OpenBSD editors aren't numbered.
 
 ## Versioning Rule
 For v"X.Y.Z":

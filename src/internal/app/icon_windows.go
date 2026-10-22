@@ -163,9 +163,9 @@ const (
 )
 
 // setWindowAppID moves the window to icon's taskbar group. The process
-// group set at startup no longer fits once :Sslot renumbers the window, and
-// a later editor taking the old number would otherwise share its group.
-// The default icon has no group of its own, so it clears the window's.
+// group set at startup no longer fits once :Simplenvimslot renumbers the
+// window, and a later editor taking the old number would otherwise share its
+// group. The default icon has no group of its own, so it clears the window's.
 // It must run on the window thread.
 func setWindowAppID(view any, icon string) {
 	ev, ok := view.(gioapp.Win32ViewEvent)
