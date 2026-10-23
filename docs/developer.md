@@ -15,6 +15,16 @@ under [`src/`](../src). Docs live in `doc/` (this file, plus
 builds are wired up). Every `go` command below assumes you've `cd`ed into
 `src/` first.
 
+**Patched Gio:** `src/go.mod` replaces `gioui.org` with a copy of Gio v0.10.3
+in [`src/third_party/gio`](../src/third_party/gio), carrying one fix that
+upstream doesn't have yet: in `app/os_wayland.go`, `gio_onKeyboardModifiers`
+passes the Wayland layout `group` only as xkb's locked layout. Upstream passes
+it in all three slots, which selects the wrong keyboard layout on keymaps with
+three or more layouts (for example, typing `mmm` showed non-English text over
+TeamViewer to a Wayland host). To upgrade Gio, copy the new module version
+from `$(go env GOMODCACHE)/gioui.org@vX.Y.Z` over this directory, re-apply that
+patch, and bump the `require` line in `go.mod`.
+
 ## Prerequisites (all platforms)
 
 - **Go 1.26+** — <https://go.dev/dl/> (the exact minimum is whatever
