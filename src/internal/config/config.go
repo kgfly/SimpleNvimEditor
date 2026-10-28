@@ -154,6 +154,9 @@ func FilePath() (string, error) {
 // and so wins the fallback race from proper CJK faces, but it is
 // proportional rather than monospace, which is what made "你知道吗" render
 // with characters of visibly different sizes on one line.
+//
+// The OS color-emoji face comes last so it only resolves what no text face
+// covers (e.g. 😀 🚀 ✅), rather than replacing text-style symbols like ⚠.
 func ScriptFallbacks() []string {
 	switch runtime.GOOS {
 	case "darwin":
@@ -165,6 +168,7 @@ func ScriptFallbacks() []string {
 			"Songti SC",
 			"Hiragino Sans",
 			"Apple SD Gothic Neo",
+			"Apple Color Emoji",
 		}
 	case "windows":
 		return []string{
@@ -173,6 +177,7 @@ func ScriptFallbacks() []string {
 			"Microsoft JhengHei",
 			"Yu Gothic",
 			"Malgun Gothic",
+			"Segoe UI Emoji",
 		}
 	default:
 		return []string{
@@ -181,6 +186,7 @@ func ScriptFallbacks() []string {
 			"Noto Sans CJK SC",
 			"Noto Sans CJK JP",
 			"Noto Sans CJK KR",
+			"Noto Color Emoji",
 		}
 	}
 }
