@@ -424,6 +424,15 @@ Publishing to winget, Homebrew, AUR, and apt/rpm repos is **not** wired
 up, since each needs secrets and external accounts that don't exist yet.
 `ci-cd-setup.md` §7 has the recipes for when that changes.
 
+## Versioning Rule
+For v"X.Y.Z":
+
+Z: bug fix. And Z does not bump Y.
+
+Y: normal feature update.
+
+X: major feature update else it gets bumped every 10 Y.
+
 ## Troubleshooting
 
 **`pkg-config ... was not found in the pkg-config search path`** (Linux) —

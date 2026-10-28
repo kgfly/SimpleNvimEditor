@@ -32,8 +32,8 @@ features.
 
 No bundled plugin marketplace or telemetry: just a focused home for Neovim.
 
-## Typical Usage
-### Text Editor
+## Typical usage
+### Text editor
 ![image](./docs/images/text-editor.jpg)
 
 ### IDE
@@ -47,7 +47,7 @@ No bundled plugin marketplace or telemetry: just a focused home for Neovim.
 ### Diff tool
 ![image](./docs/images/diff-tool.jpg)
 
-### Github PR Review Tool 
+### Github PR review tool 
 (With gh cli and https://github.com/kgfly/gh.nvim)
 ![image](./docs/images/git-pr-review.jpg)
 
@@ -245,15 +245,6 @@ Platform notes:
   xfce4-panel and IceWM show it even without the package. On Wayland an open
   window's app ID can't change, so `:Simplenvimslot` changes only the title
   prefix there. On FreeBSD and OpenBSD editors aren't numbered.
-
-## Versioning Rule
-For v"X.Y.Z":
-
-Z: bug fix. And Z does not bump Y.
-
-Y: normal feature update.
-
-X: major feature update else it gets bumped every 10 Y.
 
 ## Reporting issues
 
