@@ -42,6 +42,24 @@ func TestNoTofuAtAnyWeight(t *testing.T) {
 	}
 }
 
+// TestNoEmojiTofu guards the color-emoji fallback: no programming or CJK
+// face has these, so without the OS emoji family they render as tofu.
+func TestNoEmojiTofu(t *testing.T) {
+	chain := withFallbacks("Hack Nerd Font Mono")
+	for _, w := range []struct {
+		name string
+		w    font.Weight
+	}{{"Normal", font.Normal}, {"Bold", font.Bold}} {
+		t.Run(w.name, func(t *testing.T) {
+			for _, ch := range []string{"😀", "✅", "🚀"} {
+				if isTofu(t, chain, w.w, ch) {
+					t.Errorf("%q renders as tofu at %s weight; the fallback chain needs the OS emoji family", ch, w.name)
+				}
+			}
+		})
+	}
+}
+
 // TestScriptFallbacksExcludeProportionalCatchAll documents why Arial
 // Unicode MS must not be reintroduced: it matches nearly every codepoint,
 // so it wins the fallback race from proper CJK faces, but it is
