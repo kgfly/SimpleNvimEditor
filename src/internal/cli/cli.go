@@ -13,7 +13,11 @@ type Options struct {
 	ShowVersion bool
 	NvimPath    string
 	Maximized   bool
-	NvimArgs    []string
+	// Slot is the instance number to start in, 0 for the lowest free one.
+	Slot int
+	// CheckSlot asks only whether slot CheckSlot is free, 0 for no check.
+	CheckSlot int
+	NvimArgs  []string
 }
 
 // Parse parses simplenvim arguments. Application flags must precede --;
@@ -28,6 +32,8 @@ func Parse(args []string) (Options, error) {
 	flags.BoolVar(&opts.ShowVersion, "v", false, "shorthand for --version")
 	flags.StringVar(&opts.NvimPath, "nvim", "", "path to the nvim executable (overrides config file)")
 	flags.BoolVar(&opts.Maximized, "maximized", false, "start the editor window maximized")
+	flags.IntVar(&opts.Slot, "slot", 0, "start in this icon number (1-99) of the SIMPLENVIM_BG_<COLOR> group; fail if it is in use")
+	flags.IntVar(&opts.CheckSlot, "check-slot", 0, "exit 0 if --slot `n` could be taken now, else print why and exit 1")
 	flags.Usage = func() {
 		fmt.Fprint(&usage, "Usage: simplenvim [flags] [file...]\n\n")
 		flags.PrintDefaults()

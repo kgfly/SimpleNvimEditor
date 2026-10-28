@@ -29,6 +29,14 @@ func main() {
 		return
 	}
 
+	if opts.CheckSlot != 0 {
+		if err := editorapp.CheckSlot(opts.CheckSlot); err != nil {
+			fmt.Fprintf(os.Stderr, "simplenvim: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	cfg, err := config.Load()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "simplenvim: loading config: %v\n", err)
@@ -38,7 +46,7 @@ func main() {
 		cfg.Nvim.Command = opts.NvimPath
 	}
 
-	a := editorapp.New(cfg, opts.NvimArgs, editorapp.Options{Maximized: opts.Maximized, Version: version})
+	a := editorapp.New(cfg, opts.NvimArgs, editorapp.Options{Maximized: opts.Maximized, Slot: opts.Slot, Version: version})
 
 	// Subscribe to "open this document" requests from the desktop
 	// environment before the event loop starts. On macOS the request for

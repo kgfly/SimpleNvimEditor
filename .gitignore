@@ -51,3 +51,4 @@ go.work.sum
 
 # Test orchestration state
 .wibey-test/
+.cache/

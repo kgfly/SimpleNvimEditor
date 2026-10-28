@@ -88,6 +88,43 @@ func TestCompactRanges(t *testing.T) {
 	}
 }
 
+func TestClaimRequestedSlot(t *testing.T) {
+	if !slotsSupported {
+		t.Skip("no slot claim on this OS")
+	}
+	group := fmt.Sprintf("req%d", os.Getpid())
+	if err := claimRequestedSlot(group, false, 5); err == nil {
+		t.Fatal("claimed a slot for an unnumbered editor")
+	}
+	for _, bad := range []int{-1, 100} {
+		if err := claimRequestedSlot(group, true, bad); err == nil {
+			t.Errorf("claimed slot %d", bad)
+		}
+	}
+	if err := claimRequestedSlot(group, true, 5); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { releaseSlot(group, 5) })
+
+	// Another editor asking for the same slot is refused.
+	cmd := exec.Command(os.Args[0], "-test.run=^TestClaimRequestedSlotHelper$")
+	cmd.Env = append(os.Environ(), "SIMPLENVIM_TEST_SLOT_GROUP="+group)
+	out, _ := cmd.CombinedOutput()
+	if !strings.Contains(string(out), group+" 5 is in use") {
+		t.Fatalf("helper printed %q, want slot 5 in use", out)
+	}
+}
+
+func TestClaimRequestedSlotHelper(t *testing.T) {
+	group := os.Getenv("SIMPLENVIM_TEST_SLOT_GROUP")
+	if group == "" {
+		t.Skip("helper for TestClaimRequestedSlot")
+	}
+	if err := claimRequestedSlot(group, true, 5); err != nil {
+		fmt.Println(err)
+	}
+}
+
 func TestSlotStateRenumberUnnumbered(t *testing.T) {
 	var s slotState
 	if _, failed := s.renumber("2"); !failed {

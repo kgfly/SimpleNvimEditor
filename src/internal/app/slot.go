@@ -1,6 +1,9 @@
 package editorapp
 
 import (
+	"errors"
+	"fmt"
+	"os"
 	"strconv"
 	"sync"
 )
@@ -63,4 +66,31 @@ func claimIcon(color string) (icon string, slot int) {
 		}
 	}
 	return color, 0
+}
+
+// claimRequestedSlot takes slot n of color for an editor started with
+// --slot n; numbered says a SIMPLENVIM_BG_<COLOR> variable chose color.
+func claimRequestedSlot(color string, numbered bool, n int) error {
+	switch {
+	case !slotsSupported:
+		return errors.New("--slot: icon numbers aren't supported on this OS")
+	case !numbered:
+		return errors.New("--slot: this editor isn't numbered; start it with SIMPLENVIM_BG_<COLOR> set")
+	case n < 1 || n > maxSlot:
+		return fmt.Errorf("--slot: the number must be 1 to %d", maxSlot)
+	case !takeSlot(color, n):
+		return fmt.Errorf("--slot: %s %d is in use", color, n)
+	}
+	return nil
+}
+
+// CheckSlot reports why an editor started now with this environment and
+// --slot n would fail, or nil if it would get slot n.
+func CheckSlot(n int) error {
+	color, numbered := startupIcon(os.Environ())
+	if err := claimRequestedSlot(color, numbered, n); err != nil {
+		return err
+	}
+	releaseSlot(color, n)
+	return nil
 }
