@@ -215,14 +215,22 @@ brown, `bk` black, `wh` white and `gy` gray. Editors without
 OS shows the window title, such as the taskbar, Alt-Tab and Mission Control.
 
 To change the number of a running editor, run `:Simplenvimslot <n>` in it,
-e.g. `:Simplenvimslot 4` (or any unique prefix, such as `:Simp 4`). The
-number must be 1 to 99. The icon and title prefix switch to the new
+e.g. `:Simplenvimslot 4` The number must be 1 to 99. The icon and title prefix switch to the new
 number, the color stays the same, and the old number is freed right away. A number another editor of the same color already uses is refused.
 `:Simplenvimslot` alone shows the current number and the free ones (runs
 shortened, e.g. `1 2 4-99`), and Tab after `:Simplenvimslot ` completes the
 free numbers. Editors without `SIMPLENVIM_BG_*` aren't numbered, so
 `:Simplenvimslot` only reports that. If your own config already defines
 `:Simplenvimslot`, yours is kept.
+
+To start an editor with a given number, pass `--slot <n>`. If another editor
+of the same color already has that number, it exits with an error instead of
+opening. `--check-slot <n>` only checks: it exits 0 if `--slot <n>` would
+succeed now, else prints why and exits 1. Both need `SIMPLENVIM_BG_*` set:
+
+```sh
+SIMPLENVIM_BG_RED=1 simplenvim --slot 4 ~/test.txt
+```
 
 Platform notes:
 

@@ -117,6 +117,9 @@ type App struct {
 // Options controls how the editor window starts.
 type Options struct {
 	Maximized bool
+	// Slot is the instance number to start in, 0 for the lowest free one;
+	// Run fails if it can't be taken.
+	Slot int
 	// Version is shown in the macOS "About SimpleNvimEditor" panel.
 	Version string
 }
@@ -156,10 +159,20 @@ func (a *App) Run(win *gioapp.Window) error {
 		Size:   unit.Sp(a.cfg.Editor.FontSize),
 	}
 
+	if a.options.Slot != 0 {
+		if err := claimRequestedSlot(a.iconColor, a.numberIcon, a.options.Slot); err != nil {
+			return err
+		}
+	}
 	if a.numberIcon {
 		color := a.iconColor
 		var slot int
-		a.iconColor, slot = claimIcon(color)
+		if a.options.Slot != 0 {
+			slot = a.options.Slot
+			a.iconColor = slotIcon(color, slot)
+		} else {
+			a.iconColor, slot = claimIcon(color)
+		}
 		a.slot.init(color, slot)
 		if a.cfg.Editor.TitlePrefix {
 			a.titlePrefix = titlePrefix(color, slot)

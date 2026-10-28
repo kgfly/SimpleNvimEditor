@@ -56,3 +56,16 @@ func TestParseRejectsNvimFlagsBeforeBoundary(t *testing.T) {
 		t.Fatal("Parse accepted Nvim flag before --")
 	}
 }
+
+func TestParseSlotFlags(t *testing.T) {
+	opts, err := cli.Parse([]string{"--slot", "4", "--check-slot=7", "notes.md"})
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if opts.Slot != 4 || opts.CheckSlot != 7 {
+		t.Fatalf("Slot, CheckSlot = %d, %d; want 4, 7", opts.Slot, opts.CheckSlot)
+	}
+	if _, err := cli.Parse([]string{"--slot", "x"}); err == nil {
+		t.Fatal("Parse accepted a non-numeric --slot")
+	}
+}
