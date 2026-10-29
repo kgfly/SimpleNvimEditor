@@ -103,6 +103,10 @@ type App struct {
 	// pressGrid is the grid the held button was pressed on (0 when none).
 	pressGrid int
 
+	// scrollDrag is the scrollbar the left button is holding, or nil; see
+	// scrollbar.go.
+	scrollDrag *scrollDrag
+
 	// linkPress records that a modified primary-button press was consumed
 	// to open a URL, so its drag/release events do not reach Nvim alone.
 	linkPress bool
@@ -278,7 +282,11 @@ func (a *App) layout(gtx layout.Context) {
 		}
 	}
 
-	render.Frame(gtx, a.fonts, snap, a.hoveredLink(snap))
+	opts := render.FrameOptions{Hover: a.hoveredLink(snap), Scrollbars: a.scrollbars(snap)}
+	if a.scrollDrag != nil {
+		opts.ActiveScrollbar = a.scrollDrag.bar.GridID
+	}
+	render.FrameWith(gtx, a.fonts, snap, opts)
 }
 
 func (a *App) syncGuiFont(guiFont string) {
@@ -547,6 +555,9 @@ func (a *App) onPointer(e pointer.Event) {
 	// the window placements to find the correct grid and translate to
 	// grid-relative coordinates so Nvim routes the event properly.
 	snap := a.state.Snapshot()
+	if e.Kind != pointer.Scroll && a.onScrollbarPointer(e, snap) {
+		return
+	}
 	grid, gridRow, gridCol := 1, row, col
 	if g, gr, gc, ok := uistate.HitTest(snap.Windows, row, col); ok {
 		grid, gridRow, gridCol = g, gr, gc

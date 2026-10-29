@@ -43,6 +43,10 @@ type EditorConfig struct {
 	// "re1 ", to the window title of editors started with a
 	// SIMPLENVIM_BG_<COLOR> variable.
 	TitlePrefix bool `toml:"title_prefix"`
+	// Scrollbar draws a scrollbar on the right edge of every window whose
+	// content overflows it, terminals included. Click the track to jump,
+	// drag the thumb to scroll. Off by default.
+	Scrollbar bool `toml:"scrollbar"`
 }
 
 // NvimConfig controls how the backend Nvim process is located and launched.
