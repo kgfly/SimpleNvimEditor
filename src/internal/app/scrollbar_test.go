@@ -8,6 +8,7 @@ import (
 
 	"gioui.org/f32"
 	"gioui.org/io/pointer"
+	"gioui.org/unit"
 
 	"github.com/kgfly/SimpleNvimEditor/internal/config"
 	"github.com/kgfly/SimpleNvimEditor/internal/nvimproc"
@@ -113,6 +114,131 @@ func TestScrollbarClickJumpsAndDragScrolls(t *testing.T) {
 	text := image.Pt(10, 10)
 	if a.onScrollbarPointer(leftEvent(pointer.Press, text), a.state.Snapshot()) {
 		t.Error("a click in the text was swallowed by the scrollbar")
+	}
+}
+
+// waitBar applies Nvim's redraws until the single scrollbar satisfies ok.
+// Row views arrive as notifications on their own goroutine, so it also
+// rechecks on a short tick rather than only on redraws.
+func waitBar(t *testing.T, a *App, what string, ok func(render.Scrollbar) bool) render.Scrollbar {
+	t.Helper()
+	deadline := time.After(5 * time.Second)
+	for {
+		if bars := a.scrollbars(a.state.Snapshot()); len(bars) == 1 && ok(bars[0]) {
+			return bars[0]
+		}
+		select {
+		case batch := <-a.proc.Redraw:
+			a.state.Apply(batch)
+		case <-time.After(20 * time.Millisecond):
+		case <-deadline:
+			t.Fatalf("timed out waiting for %s (bars %+v)", what, a.scrollbars(a.state.Snapshot()))
+		}
+	}
+}
+
+// TestScrollbarCoversOneLongWrappedLine checks a single line wrapped over
+// more rows than the window has gets a bar (by win_viewport's line counts
+// it fits), that the thumb follows scrolling within the line, and that a
+// press on the track scrolls part-way through it.
+func TestScrollbarCoversOneLongWrappedLine(t *testing.T) {
+	for _, smooth := range []bool{true, false} {
+		a := scrollbarApp(t, true)
+		var has int
+		if err := a.proc.Nvim.Eval("has('nvim-0.10')", &has); err != nil || has == 0 {
+			t.Skip("row-based bars need Nvim 0.10+ (nvim_win_text_height, smoothscroll)")
+		}
+		a.installRowViews()
+		opt := "nosmoothscroll"
+		if smooth {
+			opt = "smoothscroll"
+		}
+		if err := a.proc.Nvim.Command("silent %delete _ | call setline(1, repeat('a', 20000)) | set " + opt); err != nil {
+			t.Fatal(err)
+		}
+		b := waitBar(t, a, "a row-based bar", func(b render.Scrollbar) bool {
+			return b.Rows && b.LineCount == 250 && b.Thumb.Min.Y == b.Track.Min.Y
+		})
+
+		mid := image.Pt(b.Track.Min.X+1, b.Track.Min.Y+b.Track.Dy()/2)
+		snap := a.state.Snapshot()
+		a.onScrollbarPointer(leftEvent(pointer.Press, mid), snap)
+		a.onScrollbarPointer(leftEvent(pointer.Release, mid), snap)
+		b = waitBar(t, a, "the thumb to follow the press", func(b render.Scrollbar) bool {
+			return b.Thumb.Min.Y > b.Track.Min.Y && b.Thumb.Max.Y < b.Track.Max.Y
+		})
+		if c := (b.Thumb.Min.Y + b.Thumb.Max.Y) / 2; c < mid.Y-16 || c > mid.Y+16 {
+			t.Errorf("smoothscroll=%v: thumb %v not centred on the press at y=%d", smooth, b.Thumb, mid.Y)
+		}
+		var skip int
+		if err := a.proc.Nvim.Eval("winsaveview().skipcol", &skip); err != nil {
+			t.Fatal(err)
+		}
+		if skip <= 0 {
+			t.Errorf("smoothscroll=%v: skipcol = %d after a mid-track press, want > 0", smooth, skip)
+		}
+	}
+}
+
+// TestScrollbarWidthIsInPoints checks scrollbar_width scales with the
+// display like the font does, and that unset keeps the cell-based width.
+func TestScrollbarWidthIsInPoints(t *testing.T) {
+	a := scrollbarApp(t, true)
+	a.fonts.Metrics.CellWidth = 17
+	for _, tc := range []struct {
+		points float64
+		scale  float32
+		want   int
+	}{
+		{0, 2, 11},
+		{3, 1, 3},
+		{3, 2, 6},
+		{20, 2, 17},
+	} {
+		a.cfg.Editor.ScrollbarWidth = tc.points
+		a.metric = unit.Metric{PxPerDp: tc.scale, PxPerSp: tc.scale}
+		bars := a.scrollbars(a.state.Snapshot())
+		if len(bars) != 1 || bars[0].Track.Dx() != tc.want {
+			t.Errorf("scrollbar_width=%v at %vx: bars %+v, want one %d px wide", tc.points, tc.scale, bars, tc.want)
+		}
+	}
+}
+
+// TestScrollbarGetsItsOwnColumn checks the bar no longer covers text: with
+// the setting on, the grid is one column short of the window and the bar
+// sits in that spare column; with it off, the grid uses the full width.
+func TestScrollbarGetsItsOwnColumn(t *testing.T) {
+	for _, enabled := range []bool{true, false} {
+		a := scrollbarApp(t, enabled)
+		a.syncSize(image.Pt(100*8, 24*16))
+		want := 100
+		if enabled {
+			want = 99
+		}
+		if a.cols != want {
+			t.Fatalf("scrollbar=%v: grid is %d columns, want %d", enabled, a.cols, want)
+		}
+		waitTopline(t, a, "resize", func(uistate.Viewport) bool {
+			for _, p := range a.state.Snapshot().Windows {
+				if p.GridID == 2 {
+					return p.Width == want
+				}
+			}
+			return false
+		})
+		bars := a.scrollbars(a.state.Snapshot())
+		if !enabled {
+			if bars != nil {
+				t.Fatalf("scrollbars = %+v with the setting off", bars)
+			}
+			continue
+		}
+		if len(bars) != 1 {
+			t.Fatalf("got %d scrollbars, want 1", len(bars))
+		}
+		if b := bars[0]; b.Track.Min.X < want*8 || b.Track.Max.X > 100*8 {
+			t.Errorf("track %v should lie in the spare column x %d..%d", b.Track, want*8, 100*8)
+		}
 	}
 }
 

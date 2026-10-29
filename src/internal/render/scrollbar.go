@@ -12,8 +12,10 @@ import (
 )
 
 // Scrollbar is the on-screen geometry of one window's native scrollbar, in
-// window pixels. It is drawn over the window's rightmost column and is also
-// what the app hit-tests clicks and drags against.
+// window pixels. It is drawn in the column just right of the window (the
+// vertical separator, or the column the app reserves past the grid's right
+// edge) so it never covers text, and is also what the app hit-tests clicks
+// and drags against.
 type Scrollbar struct {
 	GridID int
 	// Win is the Nvim window handle to scroll.
@@ -22,20 +24,26 @@ type Scrollbar struct {
 	Track image.Rectangle
 	Thumb image.Rectangle
 	// LineCount and Visible are the buffer lines in total and on screen,
-	// as of this frame.
+	// as of this frame. With Rows set they count screen rows instead.
 	LineCount int
 	Visible   int
+	// Rows says the bar is laid out in screen rows, from uistate.RowView.
+	Rows bool
 }
 
-// Scrollbars lays out a bar for every split window whose buffer has more
-// lines than fit on screen. Floats (popups, pickers, scrollbar plugins) and
-// windows whose content all fits get none.
-func Scrollbars(snap uistate.Snapshot, m Metrics) []Scrollbar {
+// Scrollbars lays out a bar for every split window whose content doesn't
+// all fit on screen. Floats (popups, pickers, scrollbar plugins) and
+// windows whose content all fits get none. width is the bar width in
+// pixels, capped at one cell; 0 or less picks the default.
+func Scrollbars(snap uistate.Snapshot, m Metrics, width int) []Scrollbar {
 	cw, ch := m.CellWidth, m.CellHeight
 	if cw == 0 || ch == 0 {
 		return nil
 	}
-	width := max(4, cw*2/3)
+	if width <= 0 {
+		width = max(4, cw*2/3)
+	}
+	width = min(width, cw)
 	var bars []Scrollbar
 	for _, p := range snap.Windows {
 		if p.Float || p.Hidden || p.Width < 2 || p.Height < 1 {
@@ -45,19 +53,24 @@ func Scrollbars(snap uistate.Snapshot, m Metrics) []Scrollbar {
 		if !ok || vp.LineCount <= 0 {
 			continue
 		}
-		visible := vp.Visible()
-		if vp.Topline == 0 && visible >= vp.LineCount {
+		total, top, visible := vp.LineCount, vp.Topline, vp.Visible()
+		rv, rows := snap.RowViews[vp.Win]
+		if rows {
+			total, top, visible = rv.Total, rv.Top, p.Height
+		}
+		if top == 0 && visible >= total {
 			continue
 		}
-		right := (p.Col + p.Width) * cw
-		track := image.Rect(right-width, p.Row*ch, right, (p.Row+p.Height)*ch)
+		left := (p.Col+p.Width)*cw + (cw-width)/2
+		track := image.Rect(left, p.Row*ch, left+width, (p.Row+p.Height)*ch)
 		bars = append(bars, Scrollbar{
 			GridID:    p.GridID,
 			Win:       vp.Win,
 			Track:     track,
-			Thumb:     thumbRect(track, vp.Topline, visible, vp.LineCount, ch),
-			LineCount: vp.LineCount,
+			Thumb:     thumbRect(track, top, visible, total, ch),
+			LineCount: total,
 			Visible:   visible,
+			Rows:      rows,
 		})
 	}
 	return bars

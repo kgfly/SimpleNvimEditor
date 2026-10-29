@@ -18,6 +18,7 @@ type State struct {
 	grids     map[int]*Grid
 	windows   *WindowSet
 	viewports map[int]Viewport // keyed by grid id
+	rowViews  map[int]RowView  // keyed by window handle
 	hl        *HighlightTable
 	cursor    Cursor
 
@@ -129,6 +130,7 @@ type Snapshot struct {
 	Grids     map[int]GridView
 	Windows   []Placement
 	Viewports map[int]Viewport // keyed by grid id
+	RowViews  map[int]RowView  // keyed by window handle
 	Highlight HighlightView
 	Cursor    Cursor
 	Title     string
@@ -159,6 +161,7 @@ func (s *State) Snapshot() Snapshot {
 		Grids:     grids,
 		Windows:   s.windows.ordered(),
 		Viewports: viewports,
+		RowViews:  s.rowViews,
 		Highlight: s.hl.view(),
 		Cursor:    s.cursor,
 		Title:     s.title,

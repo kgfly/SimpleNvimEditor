@@ -100,11 +100,11 @@ type Process struct {
 	// topline not yet sent. A scrollbar drag coalesces like a resize; see
 	// ScrollWindow.
 	scrollMu      sync.Mutex
-	pendingScroll map[int]int
+	pendingScroll map[int]scrollTarget
 
 	// scrollFn, when non-nil, replaces the Lua round trip. Only tests set
 	// it; see applyScroll.
-	scrollFn func(win, topline int)
+	scrollFn func(win, topline int, rows bool)
 }
 
 // Spawn starts `command --embed [extraArgs...] [nvimArgs...]` as a child
