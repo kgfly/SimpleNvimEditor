@@ -31,16 +31,32 @@ type HoverSpan struct {
 	EndCol   int
 }
 
+// FrameOptions are the per-frame extras Frame draws on top of the grids.
+type FrameOptions struct {
+	Hover HoverLink
+	// Scrollbars are drawn over their windows; nil draws none.
+	Scrollbars []Scrollbar
+	// ActiveScrollbar is the grid whose thumb is being dragged, or 0.
+	ActiveScrollbar int
+}
+
 // Frame draws one full frame of the editor: the base grid, every placed
 // split/float grid on top of it, and finally the cursor.
 func Frame(gtx layout.Context, fonts Fonts, snap uistate.Snapshot, hovered ...HoverLink) {
+	var opts FrameOptions
+	if len(hovered) > 0 {
+		opts.Hover = hovered[0]
+	}
+	FrameWith(gtx, fonts, snap, opts)
+}
+
+// FrameWith is Frame with all options. Each scrollbar is painted right
+// after its window, so floats that overlap it still cover it.
+func FrameWith(gtx layout.Context, fonts Fonts, snap uistate.Snapshot, opts FrameOptions) {
 	_, defBg := snap.Highlight.DefaultColors()
 	size := gtx.Constraints.Max
 	paint.FillShape(gtx.Ops, defBg, clip.Rect(image.Rect(0, 0, size.X, size.Y)).Op())
-	var hover HoverLink
-	if len(hovered) > 0 {
-		hover = hovered[0]
-	}
+	hover := opts.Hover
 
 	// One cache per frame, shared by every grid: splits and floats draw
 	// the same characters as the base grid, so they hit the same entries.
@@ -56,6 +72,11 @@ func Frame(gtx layout.Context, fonts Fonts, snap uistate.Snapshot, hovered ...Ho
 		}
 		origin := image.Pt(p.Col*fonts.Metrics.CellWidth, p.Row*fonts.Metrics.CellHeight)
 		drawGrid(gtx, fonts, glyphs, snap.Highlight, gv, origin, hover)
+		for _, b := range opts.Scrollbars {
+			if b.GridID == p.GridID {
+				drawScrollbar(gtx, snap.Highlight, b, b.GridID == opts.ActiveScrollbar)
+			}
+		}
 	}
 
 	drawCursor(gtx, fonts, glyphs, snap)

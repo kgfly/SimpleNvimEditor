@@ -95,6 +95,16 @@ type Process struct {
 	// resizeFn, when non-nil, replaces the TryResizeUI round trip. Only
 	// tests set it; see applyResize.
 	resizeFn func(cols, rows int)
+
+	// scrollMu guards pendingScroll: window handle -> latest requested
+	// topline not yet sent. A scrollbar drag coalesces like a resize; see
+	// ScrollWindow.
+	scrollMu      sync.Mutex
+	pendingScroll map[int]int
+
+	// scrollFn, when non-nil, replaces the Lua round trip. Only tests set
+	// it; see applyScroll.
+	scrollFn func(win, topline int)
 }
 
 // Spawn starts `command --embed [extraArgs...] [nvimArgs...]` as a child

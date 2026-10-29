@@ -204,6 +204,36 @@ func TestHitTestPrefersTopmostOverlappingWindow(t *testing.T) {
 	}
 }
 
+func TestWinFloatPosUsesScreenPosition(t *testing.T) {
+	s := uistate.New()
+	s.Apply(batch(
+		ev("grid_resize", args(9, 1, 37)),
+		// A window-relative float (e.g. a scrollbar): anchor_row/col are relative to
+		// grid 4, but screen_row/col (args 9, 10) are where Nvim actually puts it.
+		ev("win_float_pos", args(9, 0, "NW", 4, 0, 58, false, 40, 1, 1, 119)),
+	))
+
+	p := s.Snapshot().Windows[0]
+	if p.Row != 1 || p.Col != 119 {
+		t.Fatalf("placement pos = (%d,%d), want screen pos (1,119)", p.Row, p.Col)
+	}
+	if !p.NoMouse {
+		t.Fatalf("placement.NoMouse = false, want true for mouse_enabled=false")
+	}
+}
+
+func TestHitTestSkipsNoMouseFloats(t *testing.T) {
+	// A mouse=false float (scrollbar) over a split: the click belongs to the split.
+	windows := []uistate.Placement{
+		{GridID: 2, Row: 0, Col: 0, Width: 20, Height: 20},
+		{GridID: 3, Row: 0, Col: 19, Width: 1, Height: 20, Float: true, NoMouse: true},
+	}
+	grid, gridRow, gridCol, ok := uistate.HitTest(windows, 5, 19)
+	if !ok || grid != 2 || gridRow != 5 || gridCol != 19 {
+		t.Fatalf("HitTest = (grid=%d, row=%d, col=%d, ok=%v), want (2, 5, 19, true)", grid, gridRow, gridCol, ok)
+	}
+}
+
 func TestUpsertPreservesZIndexAcrossUpdates(t *testing.T) {
 	s := uistate.New()
 	s.Apply(batch(

@@ -245,6 +245,7 @@ func (s *State) applyGridDestroy(args []interface{}) {
 		}
 		id := toInt(t[0])
 		delete(s.grids, id)
+		delete(s.viewports, id)
 		s.windows.remove(id)
 	}
 }

@@ -15,10 +15,11 @@ import (
 type State struct {
 	mu sync.RWMutex
 
-	grids   map[int]*Grid
-	windows *WindowSet
-	hl      *HighlightTable
-	cursor  Cursor
+	grids     map[int]*Grid
+	windows   *WindowSet
+	viewports map[int]Viewport // keyed by grid id
+	hl        *HighlightTable
+	cursor    Cursor
 
 	title   string
 	guiFont string
@@ -32,9 +33,10 @@ type State struct {
 // New returns an empty State, ready to receive redraw batches.
 func New() *State {
 	return &State{
-		grids:   make(map[int]*Grid),
-		windows: newWindowSet(),
-		hl:      newHighlightTable(),
+		grids:     make(map[int]*Grid),
+		windows:   newWindowSet(),
+		viewports: make(map[int]Viewport),
+		hl:        newHighlightTable(),
 	}
 }
 
@@ -77,6 +79,8 @@ func (s *State) Apply(batch [][]interface{}) bool {
 			s.applyWinHide(args)
 		case "win_close":
 			s.applyWinClose(args)
+		case "win_viewport":
+			s.applyWinViewport(args)
 		case "msg_set_pos":
 			s.applyMsgSetPos(args)
 		case "default_colors_set":
@@ -97,7 +101,7 @@ func (s *State) Apply(batch [][]interface{}) bool {
 			s.busy = false
 		default:
 			// Unhandled events (popupmenu_*, cmdline_*, tabline_update,
-			// msg_showcmd, win_viewport, ...) are intentionally ignored in
+			// msg_showcmd, ...) are intentionally ignored in
 			// this phase; see IMPLEMENTATION_PLAN.md for the roadmap.
 			// msg_set_pos IS handled above: without ext_cmdline/ext_messages,
 			// Nvim still routes the command line and messages through their
@@ -124,6 +128,7 @@ func (s *State) gridLocked(id int) *Grid {
 type Snapshot struct {
 	Grids     map[int]GridView
 	Windows   []Placement
+	Viewports map[int]Viewport // keyed by grid id
 	Highlight HighlightView
 	Cursor    Cursor
 	Title     string
@@ -145,9 +150,15 @@ func (s *State) Snapshot() Snapshot {
 		grids[id] = g.view()
 	}
 
+	viewports := make(map[int]Viewport, len(s.viewports))
+	for id, v := range s.viewports {
+		viewports[id] = v
+	}
+
 	return Snapshot{
 		Grids:     grids,
 		Windows:   s.windows.ordered(),
+		Viewports: viewports,
 		Highlight: s.hl.view(),
 		Cursor:    s.cursor,
 		Title:     s.title,

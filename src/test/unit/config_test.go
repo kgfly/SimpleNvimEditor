@@ -304,6 +304,40 @@ font_family = "monospace"
 	}
 }
 
+// TestScrollbarConfig checks the scrollbar is off unless asked for.
+func TestScrollbarConfig(t *testing.T) {
+	if config.Default().Editor.Scrollbar {
+		t.Fatal("scrollbar should be off by default")
+	}
+	for _, tc := range []struct {
+		toml string
+		want bool
+	}{
+		{"[editor]\n", false},
+		{"[editor]\nscrollbar = true\n", true},
+		{"[Editor]\nscrollbar = true\n", true},
+	} {
+		withIsolatedConfigDir(t)
+		path, err := config.FilePath()
+		if err != nil {
+			t.Fatalf("FilePath() error = %v", err)
+		}
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("MkdirAll: %v", err)
+		}
+		if err := os.WriteFile(path, []byte(tc.toml), 0o644); err != nil {
+			t.Fatalf("WriteFile: %v", err)
+		}
+		cfg, err := config.Load()
+		if err != nil {
+			t.Fatalf("Load() error = %v", err)
+		}
+		if cfg.Editor.Scrollbar != tc.want {
+			t.Errorf("%q: Scrollbar = %v, want %v", tc.toml, cfg.Editor.Scrollbar, tc.want)
+		}
+	}
+}
+
 // TestAltIsMetaConfig covers the tri-state of alt_is_meta: absent means the
 // default (true), and an explicit value is honoured either way.
 //

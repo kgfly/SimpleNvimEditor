@@ -25,7 +25,8 @@ features.
   (macOS) or Ctrl-click (Linux and Windows) visible HTTP and HTTPS links to
   open them in your browser.
 - **Simple configuration.** An optional `config.toml` lets you choose your font
-  and Neovim launch settings.
+  and Neovim launch settings, and turn on an optional per-window
+  [scrollbar](#scrollbar).
 - **More ways to work.** Run a terminal with
   `simplenvim --maximized -- -c term -c startinsert`, or use Neovim's diff mode
   as a GUI diff tool.
@@ -130,6 +131,7 @@ font_size = 14
 font_family = "monospace"  # set to your preferred font, e.g. "Hack Nerd Font Mono"
 alt_is_meta = true         # send Alt/Option chords to Nvim as <A-...>
 title_prefix = false       # prefix the window title with color + number, e.g. "re1 "
+scrollbar = false          # per-window scrollbar: click to jump, drag to scroll
 
 [nvim]
 command = "nvim"           # path or PATH-resolved name
@@ -148,6 +150,22 @@ if you would rather type composed characters than use Option as Meta.
 
 On Linux and Windows, Alt is already a pure command modifier and never
 produces text, so this setting has no effect there.
+
+### `scrollbar`
+
+Set `scrollbar = true` to draw a thin scrollbar at the right edge of every
+Neovim window whose content doesn't fit. That includes splits, file trees,
+and terminal buffers. A vertical or horizontal split gets one bar per
+window.
+
+- Click the track to jump to that position.
+- Drag the thumb to scroll.
+- Dragging a terminal that's in Terminal mode switches it to Normal mode so
+  the view can move.
+
+The bar is drawn over the window's rightmost column, and its colors come
+from your color scheme. Mouse clicks on the bar go to the scrollbar and
+never reach Neovim. Floating windows don't get a bar. The default is `false`.
 
 ## Command-line arguments
 

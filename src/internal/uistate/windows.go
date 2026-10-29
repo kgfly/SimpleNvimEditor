@@ -12,6 +12,9 @@ type Placement struct {
 	Height int
 	Float  bool
 	Hidden bool
+	// NoMouse marks a float created with mouse=false (e.g. scrollbars, cursor
+	// trails). Clicks must pass through it to the window underneath.
+	NoMouse bool
 	// ZIndex orders overlapping grids for drawing: higher paints later
 	// (on top). The base grid (id 1) always has ZIndex 0.
 	ZIndex int
@@ -79,6 +82,9 @@ func HitTest(windows []Placement, row, col int) (grid, gridRow, gridCol int, ok 
 	// entries at the end, so the topmost visible window is last.
 	for i := len(windows) - 1; i >= 0; i-- {
 		p := windows[i]
+		if p.NoMouse {
+			continue
+		}
 		if row >= p.Row && row < p.Row+p.Height &&
 			col >= p.Col && col < p.Col+p.Width {
 			return p.GridID, row - p.Row, col - p.Col, true
@@ -132,8 +138,16 @@ func (s *State) applyWinFloatPos(args []interface{}) {
 			continue
 		}
 		gridID := toInt(t[0])
+		// anchor_row/col are relative to anchor_grid and the anchor corner, so
+		// they only equal screen cells for NW floats on the base grid. Nvim
+		// also sends the resolved screen_row/col (args 9, 10); prefer those.
 		row := toInt(t[4])
 		col := toInt(t[5])
+		if len(t) >= 11 {
+			row = toInt(t[9])
+			col = toInt(t[10])
+		}
+		noMouse := len(t) >= 7 && !toBool(t[6])
 
 		width, height := 0, 0
 		if g, ok := s.grids[gridID]; ok {
@@ -141,12 +155,13 @@ func (s *State) applyWinFloatPos(args []interface{}) {
 		}
 
 		s.windows.upsert(Placement{
-			GridID: gridID,
-			Row:    row,
-			Col:    col,
-			Width:  width,
-			Height: height,
-			Float:  true,
+			GridID:  gridID,
+			Row:     row,
+			Col:     col,
+			Width:   width,
+			Height:  height,
+			Float:   true,
+			NoMouse: noMouse,
 		})
 	}
 }
@@ -174,6 +189,7 @@ func (s *State) applyWinClose(args []interface{}) {
 			continue
 		}
 		s.windows.remove(toInt(t[0]))
+		delete(s.viewports, toInt(t[0]))
 	}
 }
 
