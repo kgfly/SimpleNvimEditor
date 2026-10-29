@@ -63,15 +63,15 @@ func TestScrollWindowScrollsBuffer(t *testing.T) {
 		t.Fatal("viewport carries no window handle")
 	}
 
-	proc.ScrollWindow(v.Win, 100)
+	proc.ScrollWindow(v.Win, 100, false)
 	waitForViewport(t, proc, s, "topline 100", func(v uistate.Viewport) bool { return v.Topline == 100 })
 
-	proc.ScrollWindow(v.Win, 300)
+	proc.ScrollWindow(v.Win, 300, false)
 	waitForViewport(t, proc, s, "last line visible", func(v uistate.Viewport) bool {
 		return v.Botline >= 300 && v.Topline > 250
 	})
 
-	proc.ScrollWindow(v.Win, 0)
+	proc.ScrollWindow(v.Win, 0, false)
 	waitForViewport(t, proc, s, "back at the top", func(v uistate.Viewport) bool { return v.Topline == 0 })
 }
 
@@ -93,7 +93,7 @@ func TestScrollWindowScrollsTerminalInTerminalMode(t *testing.T) {
 		return v.LineCount > 250 && v.Topline > 250
 	})
 
-	proc.ScrollWindow(v.Win, 50)
+	proc.ScrollWindow(v.Win, 50, false)
 	waitForViewport(t, proc, s, "terminal topline 50", func(v uistate.Viewport) bool { return v.Topline == 50 })
 
 	mode, err := proc.Nvim.Mode()

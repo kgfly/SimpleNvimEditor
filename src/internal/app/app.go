@@ -609,6 +609,10 @@ func (a *App) syncSize(size image.Point) {
 		return
 	}
 	cols, rows := size.X/cw, size.Y/ch
+	if a.cfg.Editor.Scrollbar {
+		// Leave a column past the grid for the rightmost window's scrollbar.
+		cols--
+	}
 	if cols < 1 {
 		cols = 1
 	}
@@ -640,6 +644,7 @@ func (a *App) startNvim() {
 	}
 	a.proc = proc
 	a.installSlotCmd()
+	a.installRowViews()
 	go a.pumpRedraw()
 }
 

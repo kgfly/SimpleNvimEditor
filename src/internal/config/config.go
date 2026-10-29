@@ -47,6 +47,9 @@ type EditorConfig struct {
 	// content overflows it, terminals included. Click the track to jump,
 	// drag the thumb to scroll. Off by default.
 	Scrollbar bool `toml:"scrollbar"`
+	// ScrollbarWidth is the bar's width in points, capped at one cell.
+	// Zero (the default) means two thirds of a cell.
+	ScrollbarWidth float64 `toml:"scrollbar_width"`
 }
 
 // NvimConfig controls how the backend Nvim process is located and launched.

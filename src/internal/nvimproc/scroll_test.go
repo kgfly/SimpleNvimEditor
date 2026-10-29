@@ -12,18 +12,18 @@ func TestScrollWindowCoalescesDrag(t *testing.T) {
 	var mu sync.Mutex
 	var got [][2]int
 	p := &Process{slow: newFuncQueue()}
-	p.scrollFn = func(win, top int) {
+	p.scrollFn = func(win, top int, _ bool) {
 		mu.Lock()
 		defer mu.Unlock()
 		got = append(got, [2]int{win, top})
 	}
 
 	for top := 0; top < 50; top++ {
-		p.ScrollWindow(1000, top)
+		p.ScrollWindow(1000, top, false)
 	}
-	p.ScrollWindow(1001, 7)
+	p.ScrollWindow(1001, 7, false)
 	drain(p)
-	p.ScrollWindow(1000, 99)
+	p.ScrollWindow(1000, 99, false)
 	drain(p)
 
 	want := [][2]int{{1000, 49}, {1001, 7}, {1000, 99}}

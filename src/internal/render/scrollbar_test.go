@@ -17,7 +17,9 @@ func TestFrameDrawsScrollbarTrackAndThumb(t *testing.T) {
 	px := image.Pt(200, 200)
 	fonts := testFonts(t, 1, px)
 	cw, ch := fonts.Metrics.CellWidth, fonts.Metrics.CellHeight
-	cols, rows := px.X/cw, px.Y/ch
+	// One column short of the window, as the app sizes the grid with the
+	// scrollbar on, so the bar has a column of its own.
+	cols, rows := px.X/cw-1, px.Y/ch
 
 	s := uistate.New()
 	s.Apply([][]interface{}{
@@ -27,12 +29,14 @@ func TestFrameDrawsScrollbarTrackAndThumb(t *testing.T) {
 		{"win_viewport", []interface{}{int64(2), int64(1000), int64(0), int64(rows), int64(0), int64(0), int64(rows * 4), int64(0)}},
 	})
 	snap := s.Snapshot()
-	bars := Scrollbars(snap, fonts.Metrics)
+	bars := Scrollbars(snap, fonts.Metrics, 0)
 	if len(bars) != 1 {
 		t.Fatalf("got %d bars, want 1", len(bars))
 	}
 	b := bars[0]
-
+	if b.Track.Min.X < cols*cw || b.Track.Max.X > px.X {
+		t.Fatalf("track %v overlaps the text (which ends at x=%d) or leaves the window", b.Track, cols*cw)
+	}
 	img := rasterize(t, px, func(gtx layout.Context) {
 		FrameWith(gtx, fonts, snap, FrameOptions{Scrollbars: bars})
 	})

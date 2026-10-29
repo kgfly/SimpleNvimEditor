@@ -10,16 +10,42 @@ type Viewport struct {
 	Win int
 	// Topline is the 0-based first visible buffer line.
 	Topline int
-	// Botline is the 0-based line just past the last visible one. It can
-	// exceed LineCount when the window shows the end of the buffer.
+	// Botline is Nvim's w_botline as sent: the 1-based number of the first
+	// line not fully shown, so 0-based lines Topline..Botline-2 are visible.
+	// It is LineCount+1 when the window shows the end of the buffer.
 	Botline int
 	// LineCount is the number of lines in the window's buffer.
 	LineCount int
 }
 
-// Visible is how many buffer lines the window currently shows.
+// Visible is how many buffer lines the window currently shows in full.
 func (v Viewport) Visible() int {
-	return max(0, min(v.Botline, v.LineCount)-v.Topline)
+	return max(0, min(v.Botline-1, v.LineCount)-v.Topline)
+}
+
+// RowView is a window's scroll state in screen rows rather than buffer
+// lines, which also covers a view part-way through a wrapped line.
+type RowView struct {
+	// Total is the screen rows the whole buffer takes in the window.
+	Total int
+	// Top is how many of them are above the window's first row.
+	Top int
+}
+
+// SetRowViews replaces the row views with rows, as sent by Nvim: a list of
+// [win, total, top] triples. Windows missing from it have none.
+func (s *State) SetRowViews(rows interface{}) {
+	views := make(map[int]RowView)
+	for _, r := range toSlice(rows) {
+		t := toSlice(r)
+		if len(t) < 3 {
+			continue
+		}
+		views[toHandle(t[0])] = RowView{Total: toInt(t[1]), Top: toInt(t[2])}
+	}
+	s.mu.Lock()
+	s.rowViews = views
+	s.mu.Unlock()
 }
 
 // applyWinViewport handles `win_viewport`:

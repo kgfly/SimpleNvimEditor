@@ -132,6 +132,7 @@ font_family = "monospace"  # set to your preferred font, e.g. "Hack Nerd Font Mo
 alt_is_meta = true         # send Alt/Option chords to Nvim as <A-...>
 title_prefix = false       # prefix the window title with color + number, e.g. "re1 "
 scrollbar = false          # per-window scrollbar: click to jump, drag to scroll
+scrollbar_width = 0        # scrollbar width in points; 0 = automatic
 
 [nvim]
 command = "nvim"           # path or PATH-resolved name
@@ -156,16 +157,28 @@ produces text, so this setting has no effect there.
 Set `scrollbar = true` to draw a thin scrollbar at the right edge of every
 Neovim window whose content doesn't fit. That includes splits, file trees,
 and terminal buffers. A vertical or horizontal split gets one bar per
-window.
+window. The bar measures screen rows, so a wrapped line taller than the
+window (even a one-line file) gets a bar and can be scrolled through. For
+buffers over about 1 MB it measures lines instead, to stay fast.
 
 - Click the track to jump to that position.
 - Drag the thumb to scroll.
 - Dragging a terminal that's in Terminal mode switches it to Normal mode so
   the view can move.
 
-The bar is drawn over the window's rightmost column, and its colors come
-from your color scheme. Mouse clicks on the bar go to the scrollbar and
-never reach Neovim. Floating windows don't get a bar. The default is `false`.
+The bar never covers text: it sits in the column just right of its window,
+which is the split's vertical separator or, for the rightmost window, a
+column reserved at the right edge of the editor while the setting is on.
+Its colors come from your color scheme. Mouse clicks on the bar go to the
+scrollbar and never reach Neovim (including the separator under it).
+Floating windows don't get a bar. The default is `false`.
+
+`scrollbar_width` sets the bar's width in points (pixels on a standard
+display, two pixels each on a Retina/2x one). It can't exceed one
+character cell, so larger values are capped. When it's left out or set
+to `0`, the bar is two thirds of a cell wide and follows the font size.
+With the default font at size 14 that's 5 px on a standard display and
+11 px on a Retina one.
 
 ## Command-line arguments
 
