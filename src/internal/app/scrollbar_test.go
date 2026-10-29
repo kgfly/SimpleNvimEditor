@@ -144,6 +144,10 @@ func waitBar(t *testing.T, a *App, what string, ok func(render.Scrollbar) bool) 
 func TestScrollbarCoversOneLongWrappedLine(t *testing.T) {
 	for _, smooth := range []bool{true, false} {
 		a := scrollbarApp(t, true)
+		var has int
+		if err := a.proc.Nvim.Eval("has('nvim-0.10')", &has); err != nil || has == 0 {
+			t.Skip("row-based bars need Nvim 0.10+ (nvim_win_text_height, smoothscroll)")
+		}
 		a.installRowViews()
 		opt := "nosmoothscroll"
 		if smooth {

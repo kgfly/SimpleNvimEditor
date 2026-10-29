@@ -41,6 +41,8 @@ const rowViewMethod = "simplenvim_rows"
 // scroll would cost too much.
 const rowViewLua = `
 local chan = ...
+-- Added in Nvim 0.10; older versions keep line-based bars.
+if not vim.api.nvim_win_text_height then return end
 local max_bytes = 1000000
 local function th(win, o) return vim.api.nvim_win_text_height(win, o).all end
 local sent, queued = nil, false

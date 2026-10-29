@@ -159,7 +159,8 @@ Neovim window whose content doesn't fit. That includes splits, file trees,
 and terminal buffers. A vertical or horizontal split gets one bar per
 window. The bar measures screen rows, so a wrapped line taller than the
 window (even a one-line file) gets a bar and can be scrolled through. For
-buffers over about 1 MB it measures lines instead, to stay fast.
+buffers over about 1 MB, or with Neovim older than 0.10, it measures lines
+instead.
 
 - Click the track to jump to that position.
 - Drag the thumb to scroll.
