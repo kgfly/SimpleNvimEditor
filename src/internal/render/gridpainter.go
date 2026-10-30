@@ -64,6 +64,11 @@ func FrameWith(gtx layout.Context, fonts Fonts, snap uistate.Snapshot, opts Fram
 
 	if base, ok := snap.Grids[1]; ok {
 		drawGrid(gtx, fonts, glyphs, snap.Highlight, base, image.Pt(0, 0), hover)
+		// Nvim allocates the message grid at full screen height and places
+		// it at the cmdline row, so its stale off-screen lines would spill
+		// into the leftover pixels below the last row as clipped text.
+		// Clip vertically only: the scrollbar uses the column past the grid.
+		defer clip.Rect(image.Rect(0, 0, size.X, base.Rows*fonts.Metrics.CellHeight)).Push(gtx.Ops).Pop()
 	}
 	for _, p := range snap.Windows {
 		gv, ok := snap.Grids[p.GridID]

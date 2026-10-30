@@ -130,3 +130,30 @@ func TestBlendedCursorIsHidden(t *testing.T) {
 		t.Errorf("blend=100 cursor painted %d red pixels, want 0", red)
 	}
 }
+
+// TestMessageGridClippedToBaseGrid: Nvim sizes the message grid to the full
+// screen and parks it at the cmdline row, so its stale lower lines must not
+// leak into the leftover pixels below the base grid.
+func TestMessageGridClippedToBaseGrid(t *testing.T) {
+	fonts := testFonts(t, 1, image.Pt(120, 120))
+	cw, ch := fonts.Metrics.CellWidth, fonts.Metrics.CellHeight
+	const cols, rows = 4, 3
+	px := image.Pt(cols*cw, rows*ch+ch/2)
+
+	red := []interface{}{"x", int64(7), int64(cols)}
+	s := uistate.New()
+	s.Apply([][]interface{}{
+		{"default_colors_set", []interface{}{int64(0xffffff), int64(0x000000), int64(0), int64(0), int64(0)}},
+		{"hl_attr_define", []interface{}{int64(7), map[string]interface{}{"background": int64(0xff0000)}, map[string]interface{}{}, []interface{}{}}},
+		{"grid_resize", []interface{}{int64(1), int64(cols), int64(rows)}},
+		{"grid_resize", []interface{}{int64(3), int64(cols), int64(rows)}},
+		{"grid_line", []interface{}{int64(3), int64(1), int64(0), []interface{}{red}}},
+		{"msg_set_pos", []interface{}{int64(3), int64(rows - 1), false, ""}},
+	})
+	snap := s.Snapshot()
+	img := rasterize(t, px, func(gtx layout.Context) { Frame(gtx, fonts, snap) })
+
+	if n := countColor(img, image.Rect(0, rows*ch, px.X, px.Y), cRed); n != 0 {
+		t.Errorf("message grid painted %d pixels below the base grid", n)
+	}
+}
